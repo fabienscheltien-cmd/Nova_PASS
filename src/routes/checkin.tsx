@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { enregistrerVisite } from "@/lib/visites.functions";
+
+import novaReception from "@/assets/nova-reception.jpg.asset.json";
+import novaLogo from "@/assets/nova-serenity.png.asset.json";
 
 export const Route = createFileRoute("/checkin")({
   head: () => ({
@@ -29,9 +32,9 @@ function maintenantLocal() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const labelClass = "block text-sm font-medium text-foreground";
+const labelClass = "block text-sm font-medium text-hero-foreground";
 const inputClass =
-  "mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40";
+  "mt-1.5 w-full rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5 text-base text-hero-foreground placeholder:text-hero-muted outline-none focus:border-pass focus:ring-2 focus:ring-pass/30";
 
 function Checkin() {
   const envoyer = useServerFn(enregistrerVisite);
@@ -64,129 +67,188 @@ function Checkin() {
 
   if (etat === "ok") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-6">
-        <div className="max-w-sm text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-2xl text-primary">
-            ✓
-          </div>
-          <h1 className="mt-6 text-2xl font-semibold text-foreground">Merci {form.prenom} !</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Votre arrivée est enregistrée et l'accueil a été prévenu. Merci de patienter quelques
-            instants.
-          </p>
+      <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
+        <img
+          src={novaReception.url}
+          alt="Accueil Nova Serenity"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[60%_center]"
+        />
+        <div className="absolute inset-0 -z-10 bg-hero-overlay" aria-hidden="true" />
+
+        <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
+          <header className="flex items-center justify-between border-b border-hero-line pb-5">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <img
+                src={novaLogo.url}
+                alt="Nova Serenity"
+                className="h-auto w-20 drop-shadow-sm sm:w-24"
+              />
+              <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
+              <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
+            </div>
+            <Link
+              to="/registre"
+              className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
+            >
+              Espace accueil
+            </Link>
+          </header>
+
+          <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
+            <div className="max-w-sm rounded-2xl border border-hero-line bg-hero-surface p-8 text-center shadow-2xl backdrop-blur-md">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pass/20 text-2xl text-pass">
+                ✓
+              </div>
+              <h1 className="mt-6 text-2xl font-semibold text-hero-foreground">Merci {form.prenom} !</h1>
+              <p className="mt-3 text-sm text-hero-muted">
+                Votre arrivée est enregistrée et l'accueil a été prévenu. Merci de patienter quelques
+                instants.
+              </p>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background px-5 py-10">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Enregistrement visiteur
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Tous les champs sont obligatoires.
-        </p>
+    <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
+      <img
+        src={novaReception.url}
+        alt="Accueil Nova Serenity"
+        className="absolute inset-0 -z-20 h-full w-full object-cover object-[60%_center]"
+      />
+      <div className="absolute inset-0 -z-10 bg-hero-overlay" aria-hidden="true" />
 
-        <form onSubmit={onSubmit} className="mt-8 space-y-5">
-          <div>
-            <label className={labelClass} htmlFor="prenom">
-              Prénom
-            </label>
-            <input
-              id="prenom"
-              className={inputClass}
-              value={form.prenom}
-              onChange={set("prenom")}
-              maxLength={80}
-              required
-              autoComplete="given-name"
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
+        <header className="flex items-center justify-between border-b border-hero-line pb-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <img
+              src={novaLogo.url}
+              alt="Nova Serenity"
+              className="h-auto w-20 drop-shadow-sm sm:w-24"
             />
+            <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
+            <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
           </div>
-          <div>
-            <label className={labelClass} htmlFor="nom">
-              Nom
-            </label>
-            <input
-              id="nom"
-              className={inputClass}
-              value={form.nom}
-              onChange={set("nom")}
-              maxLength={80}
-              required
-              autoComplete="family-name"
-            />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="entreprise">
-              Votre entreprise
-            </label>
-            <input
-              id="entreprise"
-              className={inputClass}
-              value={form.entreprise}
-              onChange={set("entreprise")}
-              maxLength={120}
-              required
-              autoComplete="organization"
-            />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="personneVisitee">
-              Personne visitée
-            </label>
-            <input
-              id="personneVisitee"
-              className={inputClass}
-              value={form.personneVisitee}
-              onChange={set("personneVisitee")}
-              maxLength={120}
-              required
-            />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="entrepriseVisitee">
-              Entreprise visitée
-            </label>
-            <input
-              id="entrepriseVisitee"
-              className={inputClass}
-              value={form.entrepriseVisitee}
-              onChange={set("entrepriseVisitee")}
-              maxLength={120}
-              required
-            />
-          </div>
-          <div>
-            <label className={labelClass} htmlFor="arriveeAt">
-              Date et heure d'arrivée
-            </label>
-            <input
-              id="arriveeAt"
-              type="datetime-local"
-              className={inputClass}
-              value={form.arriveeAt}
-              onChange={set("arriveeAt")}
-              required
-            />
-          </div>
-
-          {erreur && (
-            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {erreur}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={etat === "envoi"}
-            className="w-full rounded-lg bg-primary px-4 py-3 text-base font-medium text-primary-foreground disabled:opacity-60"
+          <Link
+            to="/registre"
+            className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
           >
-            {etat === "envoi" ? "Enregistrement…" : "Valider mon arrivée"}
-          </button>
-        </form>
+            Espace accueil
+          </Link>
+        </header>
+
+        <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
+          <div className="w-full max-w-md rounded-2xl border border-hero-line bg-hero-surface p-6 shadow-2xl backdrop-blur-md sm:p-8">
+            <p className="text-xs font-semibold uppercase text-pass">Enregistrement visiteur</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-hero-foreground sm:text-3xl">
+              Bienvenue chez Nova Serenity
+            </h1>
+            <p className="mt-2 text-sm text-hero-muted">
+              Tous les champs sont obligatoires.
+            </p>
+
+            <form onSubmit={onSubmit} className="mt-6 space-y-5">
+              <div>
+                <label className={labelClass} htmlFor="prenom">
+                  Prénom
+                </label>
+                <input
+                  id="prenom"
+                  className={inputClass}
+                  value={form.prenom}
+                  onChange={set("prenom")}
+                  maxLength={80}
+                  required
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="nom">
+                  Nom
+                </label>
+                <input
+                  id="nom"
+                  className={inputClass}
+                  value={form.nom}
+                  onChange={set("nom")}
+                  maxLength={80}
+                  required
+                  autoComplete="family-name"
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="entreprise">
+                  Votre entreprise
+                </label>
+                <input
+                  id="entreprise"
+                  className={inputClass}
+                  value={form.entreprise}
+                  onChange={set("entreprise")}
+                  maxLength={120}
+                  required
+                  autoComplete="organization"
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="entrepriseVisitee">
+                  Entreprise visitée
+                </label>
+                <input
+                  id="entrepriseVisitee"
+                  className={inputClass}
+                  value={form.entrepriseVisitee}
+                  onChange={set("entrepriseVisitee")}
+                  maxLength={120}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="personneVisitee">
+                  Personne visitée
+                </label>
+                <input
+                  id="personneVisitee"
+                  className={inputClass}
+                  value={form.personneVisitee}
+                  onChange={set("personneVisitee")}
+                  maxLength={120}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="arriveeAt">
+                  Date et heure d'arrivée
+                </label>
+                <input
+                  id="arriveeAt"
+                  type="datetime-local"
+                  className={inputClass}
+                  value={form.arriveeAt}
+                  onChange={set("arriveeAt")}
+                  required
+                />
+              </div>
+
+              {erreur && (
+                <p className="rounded-lg bg-destructive/20 px-3 py-2 text-sm text-destructive-foreground">
+                  {erreur}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={etat === "envoi"}
+                className="w-full rounded-lg bg-pass px-4 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-pass/90 disabled:opacity-60"
+              >
+                {etat === "envoi" ? "Enregistrement…" : "Valider mon arrivée"}
+              </button>
+            </form>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
