@@ -2,6 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 
+import novaReception from "@/assets/nova-reception.jpg.asset.json";
+import novaLogo from "@/assets/nova-serenity.png.asset.json";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -31,49 +34,77 @@ function Index() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-14 text-center print:py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Accueil visiteurs
-        </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Bienvenue
-        </h1>
-        <p className="mt-3 max-w-md text-base text-muted-foreground">
-          Scannez ce QR code avec votre téléphone pour vous enregistrer. L'accueil sera prévenu
-          immédiatement.
-        </p>
+    <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
+      <img
+        src={novaReception.url}
+        alt="Accueil Nova Serenity"
+        className="absolute inset-0 -z-20 h-full w-full object-cover object-[60%_center]"
+      />
+      <div className="absolute inset-0 -z-10 bg-hero-overlay" aria-hidden="true" />
 
-        <div className="mt-10 rounded-3xl border border-border bg-card p-8 shadow-sm">
-          {url ? (
-            <QRCodeSVG value={url} size={260} level="M" marginSize={2} />
-          ) : (
-            <div className="h-[260px] w-[260px] animate-pulse rounded-xl bg-muted" />
-          )}
-        </div>
-
-        <p className="mt-6 text-sm text-muted-foreground">
-          Pas de téléphone ?{" "}
-          <Link to="/checkin" className="font-medium text-primary underline underline-offset-4">
-            Remplir le formulaire ici
-          </Link>
-        </p>
-
-        <div className="mt-12 flex flex-wrap justify-center gap-3 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Imprimer l'affichette
-          </button>
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
+        <header className="flex items-center justify-between border-b border-hero-line pb-5">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <img
+              src={novaLogo.url}
+              alt="Nova Serenity"
+              className="h-auto w-28 drop-shadow-sm sm:w-36"
+            />
+            <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
+            <span className="text-lg font-semibold uppercase text-pass sm:text-xl">Pass</span>
+          </div>
           <Link
             to="/registre"
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+            className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
           >
             Espace accueil
           </Link>
-        </div>
+        </header>
+
+        <section className="flex flex-1 items-center py-8 sm:py-12">
+          <div className="w-full max-w-lg text-center sm:text-left">
+            <p className="text-xs font-semibold uppercase text-pass">Accueil visiteurs</p>
+            <h1 className="mt-3 text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
+              Bienvenue chez Nova Serenity
+            </h1>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
+              Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
+            </p>
+
+            <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
+              {url ? (
+                <QRCodeSVG
+                  value={url}
+                  size={244}
+                  level="H"
+                  marginSize={2}
+                  fgColor="var(--qr-foreground)"
+                  bgColor="var(--qr-background)"
+                  imageSettings={{
+                    src: novaLogo.url,
+                    width: 72,
+                    height: 42,
+                    excavate: true,
+                  }}
+                  aria-label="QR code vers le formulaire visiteur Nova Serenity"
+                />
+              ) : (
+                <div className="h-[244px] w-[244px] animate-pulse rounded-md bg-muted" />
+              )}
+            </div>
+
+            <p className="mt-5 text-sm text-hero-muted">
+              Pas de téléphone ?{" "}
+              <Link
+                to="/checkin"
+                className="font-semibold text-hero-foreground underline decoration-pass underline-offset-4"
+              >
+                Remplir le formulaire ici
+              </Link>
+            </p>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
