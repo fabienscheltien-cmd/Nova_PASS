@@ -44,14 +44,14 @@ function Index() {
 
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
         <header className="flex items-center justify-between border-b border-hero-line pb-5">
-          <div className="flex items-center gap-4 sm:gap-5">
+          <div className="flex items-center gap-3 sm:gap-4">
             <img
               src={novaLogo.url}
               alt="Nova Serenity"
-              className="h-auto w-28 drop-shadow-sm sm:w-36"
+              className="h-auto w-20 drop-shadow-sm sm:w-24"
             />
             <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
-            <span className="text-lg font-semibold uppercase text-pass sm:text-xl">Pass</span>
+            <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
           </div>
           <Link
             to="/registre"
