@@ -74,7 +74,7 @@ function Index() {
 
         <section className="flex flex-1 items-center py-8 sm:py-12">
           <div className="w-full max-w-lg text-center sm:text-left">
-            <p className="text-center text-base font-bold uppercase tracking-wider text-pass-pastel sm:text-lg">
+            <p className="text-center text-xl font-bold uppercase tracking-widest text-pass-pastel sm:text-2xl lg:text-3xl">
               Accueil visiteurs
             </p>
             <h1 className="mt-3 text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
