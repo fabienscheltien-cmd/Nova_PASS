@@ -95,8 +95,8 @@ function Index() {
                   bgColor="var(--qr-background)"
                   imageSettings={{
                     src: novaLogo.url,
-                    width: 72,
-                    height: 42,
+                    width: 78,
+                    height: 26,
                     excavate: true,
                   }}
                   aria-label="QR code vers le formulaire visiteur Nova Serenity"
