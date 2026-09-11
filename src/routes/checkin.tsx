@@ -4,7 +4,7 @@ import { useState } from "react";
 import { enregistrerVisite } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
-import novaLogo from "@/assets/nova-serenity.png.asset.json";
+import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 export const Route = createFileRoute("/checkin")({
   head: () => ({
@@ -80,11 +80,10 @@ function Checkin() {
             <div className="flex items-center gap-3 sm:gap-4">
               <img
                 src={novaLogo.url}
-                alt="Nova Serenity"
-                className="h-auto w-20 drop-shadow-sm sm:w-24"
+                alt="NOVA"
+                className="h-8 w-auto drop-shadow-sm sm:h-10"
               />
-              <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
-              <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
+              <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
             </div>
             <Link
               to="/registre"
@@ -125,11 +124,10 @@ function Checkin() {
           <div className="flex items-center gap-3 sm:gap-4">
             <img
               src={novaLogo.url}
-              alt="Nova Serenity"
-              className="h-auto w-20 drop-shadow-sm sm:w-24"
+              alt="NOVA"
+              className="h-8 w-auto drop-shadow-sm sm:h-10"
             />
-            <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
-            <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
+            <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
           </div>
           <Link
             to="/registre"
