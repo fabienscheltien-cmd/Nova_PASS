@@ -3,7 +3,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
-import novaLogo from "@/assets/nova-serenity.png.asset.json";
+import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
+import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,27 +44,39 @@ function Index() {
       <div className="absolute inset-0 -z-10 bg-hero-overlay" aria-hidden="true" />
 
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
-        <header className="flex items-center justify-between border-b border-hero-line pb-5">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hero-line pb-5">
+          <div className="flex justify-start">
             <img
-              src={novaLogo.url}
+              src={novaSerenityLogo.url}
               alt="Nova Serenity"
               className="h-auto w-20 drop-shadow-sm sm:w-24"
             />
-            <span className="h-8 w-px bg-hero-line" aria-hidden="true" />
-            <span className="text-2xl font-bold uppercase tracking-wide text-pass sm:text-3xl">Pass</span>
           </div>
-          <Link
-            to="/registre"
-            className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
-          >
-            Espace accueil
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img
+              src={novaLogo.url}
+              alt="NOVA"
+              className="h-8 w-auto drop-shadow-sm sm:h-10"
+            />
+            <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">
+              Pass
+            </span>
+          </div>
+          <div className="flex justify-end">
+            <Link
+              to="/registre"
+              className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
+            >
+              Espace accueil
+            </Link>
+          </div>
         </header>
 
         <section className="flex flex-1 items-center py-8 sm:py-12">
           <div className="w-full max-w-lg text-center sm:text-left">
-            <p className="text-xs font-semibold uppercase text-pass">Accueil visiteurs</p>
+            <p className="text-center text-base font-bold uppercase tracking-wider text-pass-pastel sm:text-lg">
+              Accueil visiteurs
+            </p>
             <h1 className="mt-3 text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
               Bienvenue chez Nova Serenity
             </h1>
