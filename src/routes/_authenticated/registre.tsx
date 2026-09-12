@@ -101,9 +101,8 @@ function Registre() {
     );
   }
 
-  async function exporterExcel() {
-    const XLSX = await import("xlsx");
-    const lignes = visites.map((v) => ({
+  function lignesExport() {
+    return visites.map((v) => ({
       "Date et heure": formatFr(v.arrivee_at),
       Nom: v.nom,
       Prénom: v.prenom,
@@ -111,10 +110,30 @@ function Registre() {
       "Personne visitée": v.personne_visitee,
       "Entreprise visitée": v.entreprise_visitee,
     }));
-    const feuille = XLSX.utils.json_to_sheet(lignes);
+  }
+
+  const nomFichier = () =>
+    `registre-visiteurs-${new Date().toISOString().slice(0, 10)}`;
+
+  async function exporterExcel() {
+    const XLSX = await import("xlsx");
+    const feuille = XLSX.utils.json_to_sheet(lignesExport());
     const classeur = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(classeur, feuille, "Visites");
-    XLSX.writeFile(classeur, `registre-visiteurs-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(classeur, `${nomFichier()}.xlsx`);
+  }
+
+  async function exporterCsv() {
+    const XLSX = await import("xlsx");
+    const feuille = XLSX.utils.json_to_sheet(lignesExport());
+    const csv = XLSX.utils.sheet_to_csv(feuille);
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nomFichier()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
