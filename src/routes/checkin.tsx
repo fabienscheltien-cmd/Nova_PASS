@@ -145,7 +145,7 @@ function Checkin() {
 
         <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
           <div className="w-full max-w-md rounded-2xl border border-hero-line bg-hero-surface p-6 shadow-2xl backdrop-blur-md sm:p-8">
-            <p className="text-xs font-semibold uppercase text-pass">Enregistrement visiteur</p>
+            <p className="text-xs font-semibold uppercase text-pass-pastel">Enregistrement visiteur</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-hero-foreground sm:text-3xl">
               Bienvenue chez Nova Serenity
             </h1>
