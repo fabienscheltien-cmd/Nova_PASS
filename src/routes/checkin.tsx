@@ -34,7 +34,7 @@ function maintenantLocal() {
 
 const labelClass = "block text-sm font-medium text-hero-foreground";
 const inputClass =
-  "mt-1.5 w-full rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5 text-base text-hero-foreground placeholder:text-hero-muted outline-none focus:border-pass focus:ring-2 focus:ring-pass/30";
+  "mt-1.5 w-full rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5 text-base text-hero-foreground placeholder:text-hero-muted outline-none focus:border-pass-pastel focus:ring-2 focus:ring-pass-pastel/30";
 
 function Checkin() {
   const envoyer = useServerFn(enregistrerVisite);
@@ -77,14 +77,17 @@ function Checkin() {
 
         <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
           <header className="flex items-center justify-between border-b border-hero-line pb-5">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              to="/"
+              className="flex items-center gap-3 sm:gap-4"
+            >
               <img
                 src={novaLogo.url}
                 alt="NOVA"
                 className="h-8 w-auto drop-shadow-sm sm:h-10"
               />
               <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
-            </div>
+            </Link>
             <Link
               to="/registre"
               className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
@@ -95,7 +98,7 @@ function Checkin() {
 
           <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
             <div className="max-w-sm rounded-2xl border border-hero-line bg-hero-surface p-8 text-center shadow-2xl backdrop-blur-md">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pass/20 text-2xl text-pass">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pass-pastel/20 text-2xl text-pass-pastel">
                 ✓
               </div>
               <h1 className="mt-6 text-2xl font-semibold text-hero-foreground">Merci {form.prenom} !</h1>
@@ -121,14 +124,17 @@ function Checkin() {
 
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12">
         <header className="flex items-center justify-between border-b border-hero-line pb-5">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            to="/"
+            className="flex items-center gap-3 sm:gap-4"
+          >
             <img
               src={novaLogo.url}
               alt="NOVA"
               className="h-8 w-auto drop-shadow-sm sm:h-10"
             />
             <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
-          </div>
+          </Link>
           <Link
             to="/registre"
             className="rounded-md border border-hero-line bg-hero-surface px-4 py-2 text-sm font-medium text-hero-foreground backdrop-blur-md transition-colors hover:bg-hero-surface-strong"
@@ -139,7 +145,7 @@ function Checkin() {
 
         <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
           <div className="w-full max-w-md rounded-2xl border border-hero-line bg-hero-surface p-6 shadow-2xl backdrop-blur-md sm:p-8">
-            <p className="text-xs font-semibold uppercase text-pass">Enregistrement visiteur</p>
+            <p className="text-xs font-semibold uppercase text-pass-pastel">Enregistrement visiteur</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-hero-foreground sm:text-3xl">
               Bienvenue chez Nova Serenity
             </h1>
@@ -239,7 +245,7 @@ function Checkin() {
               <button
                 type="submit"
                 disabled={etat === "envoi"}
-                className="w-full rounded-lg bg-pass px-4 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-pass/90 disabled:opacity-60"
+                className="w-full rounded-lg bg-pass-pastel px-4 py-3 text-base font-semibold text-hero-foreground shadow-lg transition-colors hover:bg-pass-pastel/90 disabled:opacity-60"
               >
                 {etat === "envoi" ? "Enregistrement…" : "Valider mon arrivée"}
               </button>
