@@ -72,12 +72,12 @@ function Index() {
           </div>
         </header>
 
-        <section className="flex flex-1 items-center py-8 sm:py-12">
+        <section className="flex flex-1 flex-col justify-center py-8 sm:py-12">
+          <p className="mb-8 text-center text-2xl font-bold uppercase tracking-widest text-pass-pastel sm:mb-10 sm:text-3xl lg:text-4xl">
+            Accueil visiteurs
+          </p>
           <div className="w-full max-w-lg text-center sm:text-left">
-            <p className="text-center text-xl font-bold uppercase tracking-widest text-pass-pastel sm:text-2xl lg:text-3xl">
-              Accueil visiteurs
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
+            <h1 className="text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
               Bienvenue chez Nova Serenity
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
