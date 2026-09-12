@@ -148,13 +148,22 @@ function Registre() {
             {visites.length > 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          onClick={exporterExcel}
-          disabled={visites.length === 0}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          Exporter en Excel
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exporterExcel}
+            disabled={visites.length === 0}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            Export Excel
+          </button>
+          <button
+            onClick={exporterCsv}
+            disabled={visites.length === 0}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
