@@ -219,11 +219,11 @@ function Registre() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Date et heure</th>
-              <th className="px-4 py-3">Visiteur</th>
-              <th className="px-4 py-3">Entreprise</th>
-              <th className="px-4 py-3">Personne visitée</th>
-              <th className="px-4 py-3">Entreprise visitée</th>
+              <th className="px-4 py-3">{enteteTri("Date et heure", "arrivee_at")}</th>
+              <th className="px-4 py-3">{enteteTri("Visiteur", "visiteur")}</th>
+              <th className="px-4 py-3">{enteteTri("Entreprise", "entreprise")}</th>
+              <th className="px-4 py-3">{enteteTri("Personne visitée", "personne_visitee")}</th>
+              <th className="px-4 py-3">{enteteTri("Entreprise visitée", "entreprise_visitee")}</th>
             </tr>
           </thead>
           <tbody>
