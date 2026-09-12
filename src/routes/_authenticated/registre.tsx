@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { listerVisites } from "@/lib/visites.functions";
 
 export const Route = createFileRoute("/_authenticated/registre")({
@@ -38,11 +38,16 @@ function formatFr(iso: string) {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
 
+type ColTri = "arrivee_at" | "visiteur" | "entreprise" | "personne_visitee" | "entreprise_visitee";
+type SensTri = "asc" | "desc";
+
 function Registre() {
   const charger = useServerFn(listerVisites);
   const [du, setDu] = useState("");
   const [au, setAu] = useState("");
   const [recherche, setRecherche] = useState("");
+  const [tri, setTri] = useState<ColTri>("arrivee_at");
+  const [sens, setSens] = useState<SensTri>("desc");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["visites", du, au, recherche],
@@ -50,11 +55,54 @@ function Registre() {
     refetchInterval: 30000,
   });
 
-  const visites = (data ?? []) as Visite[];
+  const visites = useMemo(() => {
+    const lignes = [...((data ?? []) as Visite[])];
+    const cle = (v: Visite): string => {
+      switch (tri) {
+        case "visiteur":
+          return `${v.nom} ${v.prenom}`.toLowerCase();
+        case "entreprise":
+          return v.entreprise.toLowerCase();
+        case "personne_visitee":
+          return v.personne_visitee.toLowerCase();
+        case "entreprise_visitee":
+          return v.entreprise_visitee.toLowerCase();
+        default:
+          return v.arrivee_at;
+      }
+    };
+    lignes.sort((a, b) => {
+      const comp = cle(a).localeCompare(cle(b), "fr");
+      return sens === "asc" ? comp : -comp;
+    });
+    return lignes;
+  }, [data, tri, sens]);
 
-  async function exporterExcel() {
-    const XLSX = await import("xlsx");
-    const lignes = visites.map((v) => ({
+  function changerTri(col: ColTri) {
+    if (tri === col) {
+      setSens(sens === "asc" ? "desc" : "asc");
+    } else {
+      setTri(col);
+      setSens(col === "arrivee_at" ? "desc" : "asc");
+    }
+  }
+
+  function enteteTri(label: string, col: ColTri) {
+    return (
+      <button
+        onClick={() => changerTri(col)}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground"
+      >
+        {label}
+        <span className="text-[10px]">
+          {tri === col ? (sens === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    );
+  }
+
+  function lignesExport() {
+    return visites.map((v) => ({
       "Date et heure": formatFr(v.arrivee_at),
       Nom: v.nom,
       Prénom: v.prenom,
@@ -62,10 +110,30 @@ function Registre() {
       "Personne visitée": v.personne_visitee,
       "Entreprise visitée": v.entreprise_visitee,
     }));
-    const feuille = XLSX.utils.json_to_sheet(lignes);
+  }
+
+  const nomFichier = () =>
+    `registre-visiteurs-${new Date().toISOString().slice(0, 10)}`;
+
+  async function exporterExcel() {
+    const XLSX = await import("xlsx");
+    const feuille = XLSX.utils.json_to_sheet(lignesExport());
     const classeur = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(classeur, feuille, "Visites");
-    XLSX.writeFile(classeur, `registre-visiteurs-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(classeur, `${nomFichier()}.xlsx`);
+  }
+
+  async function exporterCsv() {
+    const XLSX = await import("xlsx");
+    const feuille = XLSX.utils.json_to_sheet(lignesExport());
+    const csv = XLSX.utils.sheet_to_csv(feuille);
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nomFichier()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -80,13 +148,22 @@ function Registre() {
             {visites.length > 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          onClick={exporterExcel}
-          disabled={visites.length === 0}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          Exporter en Excel
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exporterExcel}
+            disabled={visites.length === 0}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            Export Excel
+          </button>
+          <button
+            onClick={exporterCsv}
+            disabled={visites.length === 0}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
@@ -142,11 +219,11 @@ function Registre() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Date et heure</th>
-              <th className="px-4 py-3">Visiteur</th>
-              <th className="px-4 py-3">Entreprise</th>
-              <th className="px-4 py-3">Personne visitée</th>
-              <th className="px-4 py-3">Entreprise visitée</th>
+              <th className="px-4 py-3">{enteteTri("Date et heure", "arrivee_at")}</th>
+              <th className="px-4 py-3">{enteteTri("Visiteur", "visiteur")}</th>
+              <th className="px-4 py-3">{enteteTri("Entreprise", "entreprise")}</th>
+              <th className="px-4 py-3">{enteteTri("Personne visitée", "personne_visitee")}</th>
+              <th className="px-4 py-3">{enteteTri("Entreprise visitée", "entreprise_visitee")}</th>
             </tr>
           </thead>
           <tbody>
