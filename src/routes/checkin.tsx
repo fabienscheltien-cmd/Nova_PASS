@@ -98,7 +98,7 @@ function Checkin() {
 
           <section className="flex flex-1 items-center justify-center py-8 sm:py-12">
             <div className="max-w-sm rounded-2xl border border-hero-line bg-hero-surface p-8 text-center shadow-2xl backdrop-blur-md">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pass/20 text-2xl text-pass">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pass-pastel/20 text-2xl text-pass-pastel">
                 ✓
               </div>
               <h1 className="mt-6 text-2xl font-semibold text-hero-foreground">Merci {form.prenom} !</h1>
