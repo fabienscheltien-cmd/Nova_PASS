@@ -34,7 +34,7 @@ function maintenantLocal() {
 
 const labelClass = "block text-sm font-medium text-hero-foreground";
 const inputClass =
-  "mt-1.5 w-full rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5 text-base text-hero-foreground placeholder:text-hero-muted outline-none focus:border-pass focus:ring-2 focus:ring-pass/30";
+  "mt-1.5 w-full rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5 text-base text-hero-foreground placeholder:text-hero-muted outline-none focus:border-pass-pastel focus:ring-2 focus:ring-pass-pastel/30";
 
 function Checkin() {
   const envoyer = useServerFn(enregistrerVisite);
