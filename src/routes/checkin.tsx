@@ -245,7 +245,7 @@ function Checkin() {
               <button
                 type="submit"
                 disabled={etat === "envoi"}
-                className="w-full rounded-lg bg-pass px-4 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-pass/90 disabled:opacity-60"
+                className="w-full rounded-lg bg-pass-pastel px-4 py-3 text-base font-semibold text-hero-foreground shadow-lg transition-colors hover:bg-pass-pastel/90 disabled:opacity-60"
               >
                 {etat === "envoi" ? "Enregistrement…" : "Valider mon arrivée"}
               </button>
