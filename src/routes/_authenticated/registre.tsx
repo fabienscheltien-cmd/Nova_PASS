@@ -38,11 +38,16 @@ function formatFr(iso: string) {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
 
+type ColTri = "arrivee_at" | "visiteur" | "entreprise" | "personne_visitee" | "entreprise_visitee";
+type SensTri = "asc" | "desc";
+
 function Registre() {
   const charger = useServerFn(listerVisites);
   const [du, setDu] = useState("");
   const [au, setAu] = useState("");
   const [recherche, setRecherche] = useState("");
+  const [tri, setTri] = useState<ColTri>("arrivee_at");
+  const [sens, setSens] = useState<SensTri>("desc");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["visites", du, au, recherche],
@@ -50,7 +55,51 @@ function Registre() {
     refetchInterval: 30000,
   });
 
-  const visites = (data ?? []) as Visite[];
+  const visites = useMemo(() => {
+    const lignes = [...((data ?? []) as Visite[])];
+    const cle = (v: Visite): string => {
+      switch (tri) {
+        case "visiteur":
+          return `${v.nom} ${v.prenom}`.toLowerCase();
+        case "entreprise":
+          return v.entreprise.toLowerCase();
+        case "personne_visitee":
+          return v.personne_visitee.toLowerCase();
+        case "entreprise_visitee":
+          return v.entreprise_visitee.toLowerCase();
+        default:
+          return v.arrivee_at;
+      }
+    };
+    lignes.sort((a, b) => {
+      const comp = cle(a).localeCompare(cle(b), "fr");
+      return sens === "asc" ? comp : -comp;
+    });
+    return lignes;
+  }, [data, tri, sens]);
+
+  function changerTri(col: ColTri) {
+    if (tri === col) {
+      setSens(sens === "asc" ? "desc" : "asc");
+    } else {
+      setTri(col);
+      setSens(col === "arrivee_at" ? "desc" : "asc");
+    }
+  }
+
+  function enteteTri(label: string, col: ColTri) {
+    return (
+      <button
+        onClick={() => changerTri(col)}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground"
+      >
+        {label}
+        <span className="text-[10px]">
+          {tri === col ? (sens === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    );
+  }
 
   async function exporterExcel() {
     const XLSX = await import("xlsx");
