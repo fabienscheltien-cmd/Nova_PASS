@@ -101,6 +101,46 @@ function Index() {
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
+            {(sites?.length ?? 0) > 1 && (
+              <div className="mt-5">
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wide text-pass-pastel"
+                  htmlFor="site"
+                >
+                  Site
+                </label>
+                <select
+                  id="site"
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  className="mt-1.5 rounded-lg border border-hero-line bg-hero-surface px-3 py-2 text-sm text-hero-foreground outline-none"
+                >
+                  {(sites ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nom}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {siteActif && (
+              <p className="mt-3 text-sm text-hero-muted">
+                {siteActif.nom}
+                {[siteActif.adresse, siteActif.code_postal, siteActif.ville].filter(Boolean).length >
+                  0 && (
+                  <>
+                    {" — "}
+                    {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </>
+                )}
+              </p>
+            )}
+
+
+
             <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
               {url ? (
                 <QRCodeSVG
