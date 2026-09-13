@@ -9,7 +9,11 @@ import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 export const Route = createFileRoute("/checkin")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
+  }),
   head: () => ({
+
     meta: [
       { title: "Enregistrement visiteur — Accueil" },
       {
