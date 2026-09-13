@@ -32,11 +32,24 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [url, setUrl] = useState("");
+  const [origine, setOrigine] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const chargerSites = useServerFn(listerSitesPublics);
+  const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
 
   useEffect(() => {
-    setUrl(`${window.location.origin}/checkin`);
+    setOrigine(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    if (!siteId && sites && sites.length > 0) setSiteId(sites[0]!.id);
+  }, [sites, siteId]);
+
+  const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
+  const url = origine
+    ? `${origine}/checkin${siteId ? `?site=${siteId}` : ""}`
+    : "";
+
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
