@@ -120,7 +120,7 @@ export const modifierCompte = createServerFn({ method: "POST" })
     z
       .object({
         userId: z.string().uuid(),
-        siteId: z.string().uuid().nullable(),
+        siteId: z.string().uuid().nullable().optional(),
         motDePasse: z.string().min(8).max(72).optional(),
       })
       .parse(data),
@@ -128,7 +128,9 @@ export const modifierCompte = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigerSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("profils").update({ site_id: data.siteId }).eq("user_id", data.userId);
+    if (data.siteId !== undefined) {
+      await supabaseAdmin.from("profils").update({ site_id: data.siteId }).eq("user_id", data.userId);
+    }
     if (data.motDePasse) {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
         password: data.motDePasse,

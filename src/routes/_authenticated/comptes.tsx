@@ -70,7 +70,7 @@ function Comptes() {
   async function reinitialiser(userId: string) {
     const nouveau = prompt("Nouveau mot de passe (8 caractères minimum) :");
     if (!nouveau) return;
-    await modifier({ data: { userId, siteId: null, motDePasse: nouveau } });
+    await modifier({ data: { userId, motDePasse: nouveau } });
     alert("Mot de passe mis à jour.");
   }
 
