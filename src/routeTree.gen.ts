@@ -14,8 +14,6 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckinRouteImport } from './routes/checkin'
 import { Route as AuthenticatedRegistreRouteImport } from './routes/_authenticated/registre'
-import { Route as AuthenticatedReglagesRouteImport } from './routes/_authenticated/reglages'
-import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,32 +39,18 @@ const AuthenticatedRegistreRoute = AuthenticatedRegistreRouteImport.update({
   path: '/registre',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedReglagesRoute = AuthenticatedReglagesRouteImport.update({
-  id: '/reglages',
-  path: '/reglages',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const ApiPublicBootstrapAdminRoute = ApiPublicBootstrapAdminRouteImport.update({
-  id: '/api/public/bootstrap-admin',
-  path: '/api/public/bootstrap-admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
   '/registre': typeof AuthenticatedRegistreRoute
-  '/reglages': typeof AuthenticatedReglagesRoute
-  '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
   '/registre': typeof AuthenticatedRegistreRoute
-  '/reglages': typeof AuthenticatedReglagesRoute
-  '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,26 +59,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
   '/_authenticated/registre': typeof AuthenticatedRegistreRoute
-  '/_authenticated/reglages': typeof AuthenticatedReglagesRoute
-  '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/auth'
-    | '/checkin'
-    | '/registre'
-    | '/reglages'
-    | '/api/public/bootstrap-admin'
+  fullPaths: '/' | '/auth' | '/checkin' | '/registre'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/auth'
-    | '/checkin'
-    | '/registre'
-    | '/reglages'
-    | '/api/public/bootstrap-admin'
+  to: '/' | '/auth' | '/checkin' | '/registre'
   id:
     | '__root__'
     | '/'
@@ -102,8 +72,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/checkin'
     | '/_authenticated/registre'
-    | '/_authenticated/reglages'
-    | '/api/public/bootstrap-admin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -111,7 +79,6 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CheckinRoute: typeof CheckinRoute
-  ApiPublicBootstrapAdminRoute: typeof ApiPublicBootstrapAdminRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,31 +118,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRegistreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/reglages': {
-      id: '/_authenticated/reglages'
-      path: '/reglages'
-      fullPath: '/reglages'
-      preLoaderRoute: typeof AuthenticatedReglagesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/api/public/bootstrap-admin': {
-      id: '/api/public/bootstrap-admin'
-      path: '/api/public/bootstrap-admin'
-      fullPath: '/api/public/bootstrap-admin'
-      preLoaderRoute: typeof ApiPublicBootstrapAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedRegistreRoute: typeof AuthenticatedRegistreRoute
-  AuthenticatedReglagesRoute: typeof AuthenticatedReglagesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRegistreRoute: AuthenticatedRegistreRoute,
-  AuthenticatedReglagesRoute: AuthenticatedReglagesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -186,7 +137,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CheckinRoute: CheckinRoute,
-  ApiPublicBootstrapAdminRoute: ApiPublicBootstrapAdminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
