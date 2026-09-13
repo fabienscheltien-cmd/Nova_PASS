@@ -44,6 +44,11 @@ const inputClass =
 
 function Checkin() {
   const envoyer = useServerFn(enregistrerVisite);
+  const chargerSites = useServerFn(listerSitesPublics);
+  const { site: siteParam } = Route.useSearch();
+  const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
+
+  const [siteId, setSiteId] = useState(siteParam ?? "");
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -55,21 +60,32 @@ function Checkin() {
   const [etat, setEtat] = useState<"saisie" | "envoi" | "ok">("saisie");
   const [erreur, setErreur] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!siteId && sites && sites.length > 0) setSiteId(sites[0]!.id);
+  }, [sites, siteId]);
+
+  const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
+    if (!siteId) {
+      setErreur("Merci de choisir le site où vous vous présentez.");
+      return;
+    }
     setEtat("envoi");
     try {
-      await envoyer({ data: form });
+      await envoyer({ data: { ...form, siteId } });
       setEtat("ok");
     } catch {
       setErreur("L'enregistrement n'a pas pu être effectué. Merci de prévenir l'accueil.");
       setEtat("saisie");
     }
   }
+
 
   if (etat === "ok") {
     return (
