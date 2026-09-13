@@ -11,6 +11,7 @@ const visiteSchema = z.object({
   personneVisitee: champ(120),
   entrepriseVisitee: champ(120),
   arriveeAt: z.string().min(1).max(40),
+  siteId: z.string().uuid(),
 });
 
 export type NouvelleVisite = z.infer<typeof visiteSchema>;
@@ -22,6 +23,17 @@ function formatFr(iso: string) {
     timeZone: "Europe/Paris",
   });
 }
+
+/** Liste publique des sites (pour le QR code et le formulaire visiteur). */
+export const listerSitesPublics = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("sites")
+    .select("id, nom, adresse, code_postal, ville")
+    .order("nom");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+});
 
 export const enregistrerVisite = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => visiteSchema.parse(data))
@@ -37,6 +49,7 @@ export const enregistrerVisite = createServerFn({ method: "POST" })
         personne_visitee: data.personneVisitee,
         entreprise_visitee: data.entrepriseVisitee,
         arrivee_at: new Date(data.arriveeAt).toISOString(),
+        site_id: data.siteId,
       })
       .select("id, arrivee_at")
       .single();
@@ -45,19 +58,20 @@ export const enregistrerVisite = createServerFn({ method: "POST" })
 
     let emailEnvoye = false;
     try {
-      const { data: reglages } = await supabaseAdmin
-        .from("reglages")
-        .select("email_accueil")
-        .eq("id", 1)
+      const { data: site } = await supabaseAdmin
+        .from("sites")
+        .select("nom, adresse, code_postal, ville, email_accueil")
+        .eq("id", data.siteId)
         .maybeSingle();
 
-      const destinataire = reglages?.email_accueil;
+      const destinataire = site?.email_accueil;
       const apiKey = process.env["LOVABLE_API_KEY"];
       const senderDomain = process.env["LOVABLE_EMAIL_DOMAIN"];
 
       if (destinataire && apiKey && senderDomain) {
         const { sendLovableEmail } = await import("@lovable.dev/email-js");
         const lignes = [
+          ["Site", `${site?.nom ?? ""} — ${site?.adresse ?? ""} ${site?.code_postal ?? ""} ${site?.ville ?? ""}`],
           ["Nom", data.nom],
           ["Prénom", data.prenom],
           ["Entreprise du visiteur", data.entreprise],
@@ -89,10 +103,33 @@ export const enregistrerVisite = createServerFn({ method: "POST" })
     return { id: visite.id, emailEnvoye };
   });
 
+/** Rôle + site du compte connecté. */
+export const monProfil = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [{ data: profil }, { data: roles }] = await Promise.all([
+      context.supabase
+        .from("profils")
+        .select("email, site_id, sites(nom, ville)")
+        .eq("user_id", context.userId)
+        .maybeSingle(),
+      context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
+    ]);
+
+    const estSuperAdmin = (roles ?? []).some((r) => r.role === "super_admin");
+    return {
+      email: profil?.email ?? String(context.claims["email"] ?? ""),
+      siteId: profil?.site_id ?? null,
+      siteNom: (profil as { sites?: { nom?: string } } | null)?.sites?.nom ?? null,
+      estSuperAdmin,
+    };
+  });
+
 const filtresSchema = z.object({
   du: z.string().optional(),
   au: z.string().optional(),
   recherche: z.string().max(120).optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const listerVisites = createServerFn({ method: "POST" })
@@ -102,11 +139,12 @@ export const listerVisites = createServerFn({ method: "POST" })
     let requete = context.supabase
       .from("visites")
       .select(
-        "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at",
+        "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, sites(nom, adresse, code_postal, ville)",
       )
       .order("arrivee_at", { ascending: false })
-      .limit(1000);
+      .limit(2000);
 
+    if (data.siteId) requete = requete.eq("site_id", data.siteId);
     if (data.du) requete = requete.gte("arrivee_at", new Date(`${data.du}T00:00:00`).toISOString());
     if (data.au) requete = requete.lte("arrivee_at", new Date(`${data.au}T23:59:59`).toISOString());
 
@@ -120,30 +158,27 @@ export const listerVisites = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await requete;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    return (rows ?? []) as unknown as Array<{
+      id: string;
+      nom: string;
+      prenom: string;
+      entreprise: string;
+      personne_visitee: string;
+      entreprise_visitee: string;
+      arrivee_at: string;
+      site_id: string | null;
+      sites: { nom: string; adresse: string; code_postal: string; ville: string } | null;
+    }>;
   });
 
-export const lireReglages = createServerFn({ method: "GET" })
+/** Sites visibles par le compte connecté (tous pour la super admin). */
+export const listerSites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("reglages")
-      .select("email_accueil")
-      .eq("id", 1)
-      .maybeSingle();
+      .from("sites")
+      .select("id, nom, adresse, code_postal, ville, pays, email_accueil")
+      .order("nom");
     if (error) throw new Error(error.message);
-    return { emailAccueil: data?.email_accueil ?? "" };
-  });
-
-export const enregistrerReglages = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z.object({ emailAccueil: z.string().trim().email().max(255) }).parse(data),
-  )
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("reglages")
-      .upsert({ id: 1, email_accueil: data.emailAccueil, updated_at: new Date().toISOString() });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    return data ?? [];
   });

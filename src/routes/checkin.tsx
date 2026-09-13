@@ -1,13 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { enregistrerVisite } from "@/lib/visites.functions";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { enregistrerVisite, listerSitesPublics } from "@/lib/visites.functions";
+
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 export const Route = createFileRoute("/checkin")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
+  }),
   head: () => ({
+
     meta: [
       { title: "Enregistrement visiteur — Accueil" },
       {
@@ -38,6 +44,11 @@ const inputClass =
 
 function Checkin() {
   const envoyer = useServerFn(enregistrerVisite);
+  const chargerSites = useServerFn(listerSitesPublics);
+  const { site: siteParam } = Route.useSearch();
+  const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
+
+  const [siteId, setSiteId] = useState(siteParam ?? "");
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -49,21 +60,32 @@ function Checkin() {
   const [etat, setEtat] = useState<"saisie" | "envoi" | "ok">("saisie");
   const [erreur, setErreur] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!siteId && sites && sites.length > 0) setSiteId(sites[0]!.id);
+  }, [sites, siteId]);
+
+  const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
+    if (!siteId) {
+      setErreur("Merci de choisir le site où vous vous présentez.");
+      return;
+    }
     setEtat("envoi");
     try {
-      await envoyer({ data: form });
+      await envoyer({ data: { ...form, siteId } });
       setEtat("ok");
     } catch {
       setErreur("L'enregistrement n'a pas pu être effectué. Merci de prévenir l'accueil.");
       setEtat("saisie");
     }
   }
+
 
   if (etat === "ok") {
     return (
@@ -154,6 +176,33 @@ function Checkin() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-6 space-y-5">
+              <div>
+                <label className={labelClass} htmlFor="site">
+                  Site
+                </label>
+                <select
+                  id="site"
+                  className={inputClass}
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  required
+                >
+                  <option value="">Choisir le site…</option>
+                  {(sites ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nom}
+                    </option>
+                  ))}
+                </select>
+                {siteActif && (
+                  <p className="mt-1.5 text-xs text-hero-muted">
+                    {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className={labelClass} htmlFor="prenom">
                   Prénom

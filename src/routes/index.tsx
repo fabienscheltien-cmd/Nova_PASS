@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
+import { listerSitesPublics } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,11 +32,24 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [url, setUrl] = useState("");
+  const [origine, setOrigine] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const chargerSites = useServerFn(listerSitesPublics);
+  const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
 
   useEffect(() => {
-    setUrl(`${window.location.origin}/checkin`);
+    setOrigine(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    if (!siteId && sites && sites.length > 0) setSiteId(sites[0]!.id);
+  }, [sites, siteId]);
+
+  const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
+  const url = origine
+    ? `${origine}/checkin${siteId ? `?site=${siteId}` : ""}`
+    : "";
+
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
@@ -84,6 +101,46 @@ function Index() {
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
+            {(sites?.length ?? 0) > 1 && (
+              <div className="mt-5">
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wide text-pass-pastel"
+                  htmlFor="site"
+                >
+                  Site
+                </label>
+                <select
+                  id="site"
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  className="mt-1.5 rounded-lg border border-hero-line bg-hero-surface px-3 py-2 text-sm text-hero-foreground outline-none"
+                >
+                  {(sites ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nom}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {siteActif && (
+              <p className="mt-3 text-sm text-hero-muted">
+                {siteActif.nom}
+                {[siteActif.adresse, siteActif.code_postal, siteActif.ville].filter(Boolean).length >
+                  0 && (
+                  <>
+                    {" — "}
+                    {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </>
+                )}
+              </p>
+            )}
+
+
+
             <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
               {url ? (
                 <QRCodeSVG
@@ -110,8 +167,10 @@ function Index() {
               Pas de téléphone ?{" "}
               <Link
                 to="/checkin"
+                search={{ site: siteId || undefined }}
                 className="font-semibold text-hero-foreground underline decoration-pass underline-offset-4"
               >
+
                 Remplir le formulaire ici
               </Link>
             </p>

@@ -13,8 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckinRouteImport } from './routes/checkin'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
 import { Route as AuthenticatedRegistreRouteImport } from './routes/_authenticated/registre'
-import { Route as AuthenticatedReglagesRouteImport } from './routes/_authenticated/reglages'
+import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,14 +37,24 @@ const CheckinRoute = CheckinRouteImport.update({
   path: '/checkin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedComptesRoute = AuthenticatedComptesRouteImport.update({
+  id: '/comptes',
+  path: '/comptes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRegistreRoute = AuthenticatedRegistreRouteImport.update({
   id: '/registre',
   path: '/registre',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedReglagesRoute = AuthenticatedReglagesRouteImport.update({
-  id: '/reglages',
-  path: '/reglages',
+const AuthenticatedSitesRoute = AuthenticatedSitesRouteImport.update({
+  id: '/sites',
+  path: '/sites',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
@@ -50,15 +62,19 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/comptes': typeof AuthenticatedComptesRoute
   '/registre': typeof AuthenticatedRegistreRoute
-  '/reglages': typeof AuthenticatedReglagesRoute
+  '/sites': typeof AuthenticatedSitesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/comptes': typeof AuthenticatedComptesRoute
   '/registre': typeof AuthenticatedRegistreRoute
-  '/reglages': typeof AuthenticatedReglagesRoute
+  '/sites': typeof AuthenticatedSitesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -66,22 +82,40 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/checkin': typeof CheckinRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/comptes': typeof AuthenticatedComptesRoute
   '/_authenticated/registre': typeof AuthenticatedRegistreRoute
-  '/_authenticated/reglages': typeof AuthenticatedReglagesRoute
+  '/_authenticated/sites': typeof AuthenticatedSitesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/checkin' | '/registre' | '/reglages'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/checkin'
+    | '/reset-password'
+    | '/comptes'
+    | '/registre'
+    | '/sites'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/checkin' | '/registre' | '/reglages'
+  to:
+    | '/'
+    | '/auth'
+    | '/checkin'
+    | '/reset-password'
+    | '/comptes'
+    | '/registre'
+    | '/sites'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/checkin'
+    | '/reset-password'
+    | '/_authenticated/comptes'
     | '/_authenticated/registre'
-    | '/_authenticated/reglages'
+    | '/_authenticated/sites'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,6 +123,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CheckinRoute: typeof CheckinRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -121,6 +156,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/comptes': {
+      id: '/_authenticated/comptes'
+      path: '/comptes'
+      fullPath: '/comptes'
+      preLoaderRoute: typeof AuthenticatedComptesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/registre': {
       id: '/_authenticated/registre'
       path: '/registre'
@@ -128,24 +177,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRegistreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/reglages': {
-      id: '/_authenticated/reglages'
-      path: '/reglages'
-      fullPath: '/reglages'
-      preLoaderRoute: typeof AuthenticatedReglagesRouteImport
+    '/_authenticated/sites': {
+      id: '/_authenticated/sites'
+      path: '/sites'
+      fullPath: '/sites'
+      preLoaderRoute: typeof AuthenticatedSitesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
   AuthenticatedRegistreRoute: typeof AuthenticatedRegistreRoute
-  AuthenticatedReglagesRoute: typeof AuthenticatedReglagesRoute
+  AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedComptesRoute: AuthenticatedComptesRoute,
   AuthenticatedRegistreRoute: AuthenticatedRegistreRoute,
-  AuthenticatedReglagesRoute: AuthenticatedReglagesRoute,
+  AuthenticatedSitesRoute: AuthenticatedSitesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -156,6 +207,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CheckinRoute: CheckinRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      profils: {
+        Row: {
+          created_at: string
+          email: string
+          site_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          site_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          site_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profils_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reglages: {
         Row: {
           email_accueil: string | null
@@ -32,6 +64,63 @@ export type Database = {
         }
         Relationships: []
       }
+      sites: {
+        Row: {
+          adresse: string
+          code_postal: string
+          created_at: string
+          email_accueil: string | null
+          id: string
+          nom: string
+          pays: string
+          updated_at: string
+          ville: string
+        }
+        Insert: {
+          adresse?: string
+          code_postal?: string
+          created_at?: string
+          email_accueil?: string | null
+          id?: string
+          nom: string
+          pays?: string
+          updated_at?: string
+          ville?: string
+        }
+        Update: {
+          adresse?: string
+          code_postal?: string
+          created_at?: string
+          email_accueil?: string | null
+          id?: string
+          nom?: string
+          pays?: string
+          updated_at?: string
+          ville?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       visites: {
         Row: {
           arrivee_at: string
@@ -42,6 +131,7 @@ export type Database = {
           nom: string
           personne_visitee: string
           prenom: string
+          site_id: string | null
         }
         Insert: {
           arrivee_at?: string
@@ -52,6 +142,7 @@ export type Database = {
           nom: string
           personne_visitee: string
           prenom: string
+          site_id?: string | null
         }
         Update: {
           arrivee_at?: string
@@ -62,18 +153,34 @@ export type Database = {
           nom?: string
           personne_visitee?: string
           prenom?: string
+          site_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "visites_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      site_utilisateur: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "hotesse"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -200,6 +307,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "hotesse"],
+    },
   },
 } as const
