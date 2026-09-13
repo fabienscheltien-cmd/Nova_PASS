@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { enregistrerVisite } from "@/lib/visites.functions";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { enregistrerVisite, listerSitesPublics } from "@/lib/visites.functions";
+
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";

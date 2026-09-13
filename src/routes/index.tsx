@@ -167,8 +167,10 @@ function Index() {
               Pas de téléphone ?{" "}
               <Link
                 to="/checkin"
+                search={{ site: siteId || undefined }}
                 className="font-semibold text-hero-foreground underline decoration-pass underline-offset-4"
               >
+
                 Remplir le formulaire ici
               </Link>
             </p>
