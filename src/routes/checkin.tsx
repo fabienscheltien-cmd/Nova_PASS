@@ -177,6 +177,33 @@ function Checkin() {
 
             <form onSubmit={onSubmit} className="mt-6 space-y-5">
               <div>
+                <label className={labelClass} htmlFor="site">
+                  Site
+                </label>
+                <select
+                  id="site"
+                  className={inputClass}
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  required
+                >
+                  <option value="">Choisir le site…</option>
+                  {(sites ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nom}
+                    </option>
+                  ))}
+                </select>
+                {siteActif && (
+                  <p className="mt-1.5 text-xs text-hero-muted">
+                    {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </p>
+                )}
+              </div>
+
+              <div>
                 <label className={labelClass} htmlFor="prenom">
                   Prénom
                 </label>
