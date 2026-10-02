@@ -9,7 +9,7 @@ import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 export const Route = createFileRoute("/checkin")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
     site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
   }),
   head: () => ({
@@ -176,32 +176,17 @@ function Checkin() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-6 space-y-5">
-              <div>
-                <label className={labelClass} htmlFor="site">
-                  Site
-                </label>
-                <select
-                  id="site"
-                  className={inputClass}
-                  value={siteId}
-                  onChange={(e) => setSiteId(e.target.value)}
-                  required
-                >
-                  <option value="">Choisir le site…</option>
-                  {(sites ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nom}
-                    </option>
-                  ))}
-                </select>
-                {siteActif && (
-                  <p className="mt-1.5 text-xs text-hero-muted">
+              {siteActif && (
+                <div className="rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-pass-pastel">Site</p>
+                  <p className="text-sm font-medium text-hero-foreground">{siteActif.nom}</p>
+                  <p className="text-xs text-hero-muted">
                     {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
                       .filter(Boolean)
                       .join(" ")}
                   </p>
-                )}
-              </div>
+                </div>
+              )}
 
               <div>
                 <label className={labelClass} htmlFor="prenom">
