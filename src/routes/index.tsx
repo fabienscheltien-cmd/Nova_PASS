@@ -11,7 +11,7 @@ import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>): { site?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
     site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
   }),
   head: () => ({
