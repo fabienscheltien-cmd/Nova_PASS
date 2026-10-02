@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
+import novaLogo from "@/assets/nova-logo.png.asset.json";
 import { listerSites } from "@/lib/visites.functions";
 import { enregistrerSite, supprimerSite } from "@/lib/admin.functions";
 
@@ -47,6 +49,17 @@ function Sites() {
   });
 
   const [form, setForm] = useState(vide);
+  const [origine, setOrigine] = useState("");
+  useEffect(() => setOrigine(window.location.origin), []);
+
+  function telechargerQr(id: string, nom: string) {
+    const canvas = document.getElementById(`qr-${id}`) as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `QR-${nom.replace(/[^a-z0-9]+/gi, "-")}.png`;
+    a.click();
+  }
   const [erreur, setErreur] = useState<string | null>(null);
 
   const set = (k: keyof typeof vide) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -130,20 +143,21 @@ function Sites() {
               <th className="px-4 py-3">Site</th>
               <th className="px-4 py-3">Adresse</th>
               <th className="px-4 py-3">E-mail accueil</th>
+              <th className="px-4 py-3">QR code du site</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-destructive">
+                <td colSpan={5} className="px-4 py-8 text-center text-destructive">
                   Liste indisponible.
                 </td>
               </tr>
@@ -155,6 +169,31 @@ function Sites() {
                   {[s.adresse, s.code_postal, s.ville].filter(Boolean).join(" ")}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{s.email_accueil ?? "—"}</td>
+                <td className="px-4 py-3">
+                  {origine && (
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-md bg-qr-surface p-1">
+                        <QRCodeCanvas
+                          id={`qr-${s.id}`}
+                          value={`${origine}/checkin?site=${s.id}`}
+                          size={512}
+                          level="H"
+                          marginSize={2}
+                          style={{ width: 64, height: 64 }}
+                          imageSettings={{ src: novaLogo.url, width: 156, height: 52, excavate: true }}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 text-xs">
+                        <button onClick={() => telechargerQr(s.id, s.nom)} className="text-left text-primary hover:underline">
+                          Télécharger (PNG)
+                        </button>
+                        <a href={`/?site=${s.id}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                          Écran d'accueil du site
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   <button
                     onClick={() =>
@@ -183,7 +222,7 @@ function Sites() {
             ))}
             {!isLoading && (sites ?? []).length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                   Aucun site pour le moment.
                 </td>
               </tr>
