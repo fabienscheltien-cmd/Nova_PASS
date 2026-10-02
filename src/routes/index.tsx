@@ -11,6 +11,9 @@ import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Accueil visiteurs — Enregistrement par QR code" },
@@ -32,8 +35,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const { site: siteParam } = Route.useSearch();
   const [origine, setOrigine] = useState("");
-  const [siteId, setSiteId] = useState("");
+  const [siteId, setSiteId] = useState(siteParam ?? "");
   const chargerSites = useServerFn(listerSitesPublics);
   const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
 
@@ -42,7 +46,8 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    if (!siteId && sites && sites.length > 0) setSiteId(sites[0]!.id);
+    if (!sites || sites.length === 0) return;
+    if (!siteId || !sites.some((s) => s.id === siteId)) setSiteId(sites[0]!.id);
   }, [sites, siteId]);
 
   const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
@@ -101,7 +106,7 @@ function Index() {
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
-            {(sites?.length ?? 0) > 1 && (
+            {!siteParam && (sites?.length ?? 0) > 1 && (
               <div className="mt-5">
                 <label
                   className="block text-xs font-semibold uppercase tracking-wide text-pass-pastel"
