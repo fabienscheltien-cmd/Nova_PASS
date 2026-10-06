@@ -101,17 +101,19 @@ export const creerCompte = createServerFn({ method: "POST" })
     });
     if (error || !cree.user) throw new Error(error?.message ?? "Création impossible");
 
-    await supabaseAdmin
+    const { error: errProfil } = await supabaseAdmin
       .from("profils")
       .upsert({ user_id: cree.user.id, email: data.email.toLowerCase(), site_id: data.siteId });
-    if (data.superAdmin) {
-      await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: cree.user.id, role: "super_admin" }, { onConflict: "user_id,role" });
-    } else {
-      await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: cree.user.id, role: "hotesse" }, { onConflict: "user_id,role" });
+    const { error: errRole } = await supabaseAdmin
+      .from("user_roles")
+      .upsert(
+        { user_id: cree.user.id, role: data.superAdmin ? "super_admin" : "hotesse" },
+        { onConflict: "user_id,role" },
+      );
+    if (errProfil || errRole) {
+      // Pas de compte à moitié configuré : on annule la création.
+      await supabaseAdmin.auth.admin.deleteUser(cree.user.id);
+      throw new Error((errProfil ?? errRole)!.message);
     }
     return { ok: true };
   });
@@ -131,7 +133,11 @@ export const modifierCompte = createServerFn({ method: "POST" })
     await exigerSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.siteId !== undefined) {
-      await supabaseAdmin.from("profils").update({ site_id: data.siteId }).eq("user_id", data.userId);
+      const { error } = await supabaseAdmin
+        .from("profils")
+        .update({ site_id: data.siteId })
+        .eq("user_id", data.userId);
+      if (error) throw new Error(error.message);
     }
     if (data.motDePasse) {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
@@ -199,10 +205,14 @@ export const inviterCompte = createServerFn({ method: "POST" })
       redirectTo: `${data.origine}/reset-password`,
     });
     if (error || !inv.user) throw new Error(error?.message ?? "Invitation impossible");
-    await supabaseAdmin.from("profils").upsert({ user_id: inv.user.id, email, site_id: data.siteId });
-    await supabaseAdmin
+    const { error: errProfil } = await supabaseAdmin
+      .from("profils")
+      .upsert({ user_id: inv.user.id, email, site_id: data.siteId });
+    if (errProfil) throw new Error(errProfil.message);
+    const { error: errRole } = await supabaseAdmin
       .from("user_roles")
       .upsert({ user_id: inv.user.id, role: "hotesse" }, { onConflict: "user_id,role" });
+    if (errRole) throw new Error(errRole.message);
     return { ok: true };
   });
 

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
+import { neutraliserFormule } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/registre")({
   head: () => ({
@@ -155,7 +156,10 @@ function Registre() {
 
   async function exporterCsv() {
     const XLSX = await import("xlsx");
-    const feuille = XLSX.utils.json_to_sheet(lignesExport());
+    const lignes = lignesExport().map((l) =>
+      Object.fromEntries(Object.entries(l).map(([k, v]) => [k, neutraliserFormule(v)])),
+    );
+    const feuille = XLSX.utils.json_to_sheet(lignes);
     const csv = XLSX.utils.sheet_to_csv(feuille);
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);

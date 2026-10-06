@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 /** Logo central du header : logo du site s'il existe, sinon NOVA + PASS. */
-export function SiteBrand({ logoUrl, nom }: { logoUrl?: string | null; nom?: string | null }) {
+export function SiteBrand({ logoUrl, nom }: { logoUrl?: string | null | undefined; nom?: string | null | undefined }) {
   if (logoUrl) {
     return (
       <span className="flex items-center justify-center rounded-lg bg-qr-surface px-3 py-1.5 shadow-md">
@@ -47,7 +47,7 @@ export function SiteQr({
   displaySize,
 }: {
   value: string;
-  logoUrl?: string | null;
+  logoUrl?: string | null | undefined;
   size: number;
   canvasId?: string;
   displaySize?: number;

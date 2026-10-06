@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { echapperHtml } from "@/lib/export";
+import { heureParisVersUtc } from "@/lib/fuseau";
 
 const champ = (max: number) => z.string().trim().min(1).max(max);
 
@@ -10,7 +12,15 @@ const visiteSchema = z.object({
   entreprise: champ(120),
   personneVisitee: champ(120),
   entrepriseVisitee: champ(120),
-  arriveeAt: z.string().min(1).max(40),
+  // Instant ISO avec fuseau (converti par le navigateur), au plus 24 h dans le passé
+  // et 15 min dans le futur pour éviter les dates aberrantes ou antidatées.
+  arriveeAt: z
+    .string()
+    .datetime({ offset: true })
+    .refine((v) => {
+      const ecart = new Date(v).getTime() - Date.now();
+      return ecart <= 15 * 60 * 1000 && ecart >= -24 * 60 * 60 * 1000;
+    }, "Date d'arrivée hors plage"),
   siteId: z.string().uuid(),
 });
 
@@ -38,6 +48,8 @@ export const listerSitesPublics = createServerFn({ method: "GET" }).handler(asyn
 export const enregistrerVisite = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => visiteSchema.parse(data))
   .handler(async ({ data }) => {
+    const { verifierLimiteDebit, envoyerEmail } = await import("@/lib/serveur.server");
+    verifierLimiteDebit();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: visite, error } = await supabaseAdmin
@@ -65,13 +77,12 @@ export const enregistrerVisite = createServerFn({ method: "POST" })
         .maybeSingle();
 
       const destinataire = site?.email_accueil;
-      const apiKey = process.env["LOVABLE_API_KEY"];
-      const senderDomain = process.env["LOVABLE_EMAIL_DOMAIN"];
-
-      if (destinataire && apiKey && senderDomain) {
-        const { sendLovableEmail } = await import("@lovable.dev/email-js");
+      if (destinataire) {
         const lignes = [
-          ["Site", `${site?.nom ?? ""} — ${site?.adresse ?? ""} ${site?.code_postal ?? ""} ${site?.ville ?? ""}`],
+          [
+            "Site",
+            `${site?.nom ?? ""} — ${site?.adresse ?? ""} ${site?.code_postal ?? ""} ${site?.ville ?? ""}`,
+          ],
           ["Nom", data.nom],
           ["Prénom", data.prenom],
           ["Entreprise du visiteur", data.entreprise],
@@ -79,22 +90,20 @@ export const enregistrerVisite = createServerFn({ method: "POST" })
           ["Entreprise visitée", data.entrepriseVisitee],
           ["Arrivée", formatFr(visite.arrivee_at)],
         ];
-        await sendLovableEmail(
-          {
-            to: destinataire,
-            from: `accueil@${senderDomain}`,
-            subject: `Nouveau visiteur : ${data.prenom} ${data.nom} (${data.entreprise})`,
-            html: `<h2>Nouveau visiteur à l'accueil</h2><table>${lignes
-              .map(
-                ([k, v]) =>
-                  `<tr><td style="padding:4px 12px 4px 0"><strong>${k}</strong></td><td>${v}</td></tr>`,
-              )
-              .join("")}</table>`,
-            text: lignes.map(([k, v]) => `${k}: ${v}`).join("\n"),
-          },
-          { apiKey },
-        );
-        emailEnvoye = true;
+        emailEnvoye = await envoyerEmail({
+          to: destinataire,
+          subject: `Nouveau visiteur : ${data.prenom} ${data.nom} (${data.entreprise})`.replace(
+            /[\r\n]+/g,
+            " ",
+          ),
+          html: `<h2>Nouveau visiteur à l'accueil</h2><table>${lignes
+            .map(
+              ([k, v]) =>
+                `<tr><td style="padding:4px 12px 4px 0"><strong>${k}</strong></td><td>${echapperHtml(v ?? "")}</td></tr>`,
+            )
+            .join("")}</table>`,
+          text: lignes.map(([k, v]) => `${k}: ${v}`).join("\n"),
+        });
       }
     } catch (e) {
       console.error("Envoi e-mail accueil impossible", e);
@@ -121,14 +130,16 @@ export const monProfil = createServerFn({ method: "GET" })
       email: profil?.email ?? String(context.claims["email"] ?? ""),
       siteId: profil?.site_id ?? null,
       siteNom: (profil as { sites?: { nom?: string } } | null)?.sites?.nom ?? null,
-      siteLogo: (profil as { sites?: { logo_url?: string | null } } | null)?.sites?.logo_url ?? null,
+      siteLogo:
+        (profil as { sites?: { logo_url?: string | null } } | null)?.sites?.logo_url ?? null,
       estSuperAdmin,
     };
   });
 
+const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const filtresSchema = z.object({
-  du: z.string().optional(),
-  au: z.string().optional(),
+  du: jour.optional(),
+  au: jour.optional(),
   recherche: z.string().max(120).optional(),
   siteId: z.string().uuid().optional(),
 });
@@ -137,29 +148,47 @@ export const listerVisites = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => filtresSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
-    let requete = context.supabase
-      .from("visites")
-      .select(
-        "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, sites(nom, adresse, code_postal, ville)",
-      )
-      .order("arrivee_at", { ascending: false })
-      .limit(2000);
+    const construire = (debut: number, fin: number) => {
+      let requete = context.supabase
+        .from("visites")
+        .select(
+          "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, sites(nom, adresse, code_postal, ville)",
+        )
+        .order("arrivee_at", { ascending: false })
+        .order("id")
+        .range(debut, fin);
 
-    if (data.siteId) requete = requete.eq("site_id", data.siteId);
-    if (data.du) requete = requete.gte("arrivee_at", new Date(`${data.du}T00:00:00`).toISOString());
-    if (data.au) requete = requete.lte("arrivee_at", new Date(`${data.au}T23:59:59`).toISOString());
+      if (data.siteId) requete = requete.eq("site_id", data.siteId);
+      // Bornes calculées en heure de Paris, quel que soit le fuseau du serveur.
+      if (data.du)
+        requete = requete.gte("arrivee_at", heureParisVersUtc(data.du, "00:00:00").toISOString());
+      if (data.au)
+        requete = requete.lte(
+          "arrivee_at",
+          heureParisVersUtc(data.au, "23:59:59.999").toISOString(),
+        );
 
-    const terme = data.recherche?.trim();
-    if (terme) {
-      const like = `%${terme.replace(/[%,()]/g, "")}%`;
-      requete = requete.or(
-        `nom.ilike.${like},prenom.ilike.${like},entreprise.ilike.${like},personne_visitee.ilike.${like},entreprise_visitee.ilike.${like}`,
-      );
+      const terme = data.recherche?.trim();
+      if (terme) {
+        const like = `%${terme.replace(/[%,()]/g, "")}%`;
+        requete = requete.or(
+          `nom.ilike.${like},prenom.ilike.${like},entreprise.ilike.${like},personne_visitee.ilike.${like},entreprise_visitee.ilike.${like}`,
+        );
+      }
+      return requete;
+    };
+
+    // Supabase plafonne chaque réponse (1000 lignes par défaut) : on pagine.
+    const TAILLE_PAGE = 1000;
+    const MAX_LIGNES = 50_000;
+    const rows: unknown[] = [];
+    for (let debut = 0; debut < MAX_LIGNES; debut += TAILLE_PAGE) {
+      const { data: page, error } = await construire(debut, debut + TAILLE_PAGE - 1);
+      if (error) throw new Error(error.message);
+      rows.push(...(page ?? []));
+      if (!page || page.length < TAILLE_PAGE) break;
     }
-
-    const { data: rows, error } = await requete;
-    if (error) throw new Error(error.message);
-    return (rows ?? []) as unknown as Array<{
+    return rows as unknown as Array<{
       id: string;
       nom: string;
       prenom: string;
