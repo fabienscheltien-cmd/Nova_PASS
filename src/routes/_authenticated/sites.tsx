@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
-import novaLogo from "@/assets/nova-logo.png.asset.json";
+import { SiteQr } from "@/components/site-brand";
 import { listerSites } from "@/lib/visites.functions";
 import { enregistrerSite, supprimerSite } from "@/lib/admin.functions";
 
@@ -35,6 +34,7 @@ const vide = {
   ville: "",
   pays: "France",
   emailAccueil: "",
+  logoUrl: null as string | null,
 };
 
 function Sites() {
@@ -61,6 +61,23 @@ function Sites() {
     a.click();
   }
   const [erreur, setErreur] = useState<string | null>(null);
+
+  function choisirLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const img = new Image();
+    img.onload = () => {
+      // Redimensionné sans déformation (max 600 px de large) pour un affichage net et léger.
+      const ratio = Math.min(1, 600 / img.naturalWidth, 300 / img.naturalHeight);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * ratio);
+      c.height = Math.round(img.naturalHeight * ratio);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      setForm((fm) => ({ ...fm, logoUrl: c.toDataURL("image/png") }));
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(f);
+  }
 
   const set = (k: keyof typeof vide) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -118,6 +135,26 @@ function Sites() {
           <input className={inputClass} value={form.ville} onChange={set("ville")} maxLength={120} />
         </div>
 
+        <div className="sm:col-span-2">
+          <label className="text-xs font-medium text-muted-foreground">Logo du site (remplace NOVA PASS sur l'accueil et au centre du QR code)</label>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            {form.logoUrl && (
+              <span className="rounded-md bg-qr-surface p-2">
+                <img src={form.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+              </span>
+            )}
+            <label className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-accent">
+              {form.logoUrl ? "Changer le logo" : "Ajouter un logo"}
+              <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={choisirLogo} />
+            </label>
+            {form.logoUrl && (
+              <button type="button" onClick={() => setForm((f) => ({ ...f, logoUrl: null }))} className="text-sm text-destructive hover:underline">
+                Retirer
+              </button>
+            )}
+          </div>
+        </div>
+
         {erreur && <p className="text-sm text-destructive sm:col-span-2">{erreur}</p>}
 
         <div className="flex gap-2 sm:col-span-2">
@@ -164,7 +201,10 @@ function Sites() {
             )}
             {(sites ?? []).map((s) => (
               <tr key={s.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 font-medium text-foreground">{s.nom}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  {s.logo_url && <img src={s.logo_url} alt="" className="mb-1 h-6 w-auto object-contain" />}
+                  {s.nom}
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {[s.adresse, s.code_postal, s.ville].filter(Boolean).join(" ")}
                 </td>
@@ -173,15 +213,7 @@ function Sites() {
                   {origine && (
                     <div className="flex items-center gap-3">
                       <div className="rounded-md bg-qr-surface p-1">
-                        <QRCodeCanvas
-                          id={`qr-${s.id}`}
-                          value={`${origine}/checkin?site=${s.id}`}
-                          size={512}
-                          level="H"
-                          marginSize={2}
-                          style={{ width: 64, height: 64 }}
-                          imageSettings={{ src: novaLogo.url, width: 156, height: 52, excavate: true }}
-                        />
+                        <SiteQr canvasId={`qr-${s.id}`} value={`${origine}/checkin?site=${s.id}`} logoUrl={s.logo_url} size={512} displaySize={64} />
                       </div>
                       <div className="flex flex-col gap-1 text-xs">
                         <button onClick={() => telechargerQr(s.id, s.nom)} className="text-left text-primary hover:underline">
@@ -189,6 +221,9 @@ function Sites() {
                         </button>
                         <a href={`/?site=${s.id}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                           Écran d'accueil du site
+                        </a>
+                        <a href={`/affiche?site=${s.id}`} className="text-primary hover:underline">
+                          Affiche PDF
                         </a>
                       </div>
                     </div>
@@ -205,6 +240,7 @@ function Sites() {
                         ville: s.ville ?? "",
                         pays: s.pays ?? "France",
                         emailAccueil: s.email_accueil ?? "",
+                        logoUrl: s.logo_url ?? null,
                       })
                     }
                     className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"

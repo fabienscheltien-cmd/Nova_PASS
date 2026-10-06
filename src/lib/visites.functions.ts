@@ -29,7 +29,7 @@ export const listerSitesPublics = createServerFn({ method: "GET" }).handler(asyn
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sites")
-    .select("id, nom, adresse, code_postal, ville")
+    .select("id, nom, adresse, code_postal, ville, logo_url")
     .order("nom");
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -110,7 +110,7 @@ export const monProfil = createServerFn({ method: "GET" })
     const [{ data: profil }, { data: roles }] = await Promise.all([
       context.supabase
         .from("profils")
-        .select("email, site_id, sites(nom, ville)")
+        .select("email, site_id, sites(nom, ville, logo_url)")
         .eq("user_id", context.userId)
         .maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
@@ -121,6 +121,7 @@ export const monProfil = createServerFn({ method: "GET" })
       email: profil?.email ?? String(context.claims["email"] ?? ""),
       siteId: profil?.site_id ?? null,
       siteNom: (profil as { sites?: { nom?: string } } | null)?.sites?.nom ?? null,
+      siteLogo: (profil as { sites?: { logo_url?: string | null } } | null)?.sites?.logo_url ?? null,
       estSuperAdmin,
     };
   });
@@ -177,7 +178,7 @@ export const listerSites = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("sites")
-      .select("id, nom, adresse, code_postal, ville, pays, email_accueil")
+      .select("id, nom, adresse, code_postal, ville, pays, email_accueil, logo_url")
       .order("nom");
     if (error) throw new Error(error.message);
     return data ?? [];

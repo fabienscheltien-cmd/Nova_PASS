@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
+import { SiteQr, SiteBrand } from "@/components/site-brand";
+import { supabase } from "@/integrations/supabase/client";
+import { monProfil } from "@/lib/visites.functions";
 import { useEffect, useState } from "react";
 import { listerSitesPublics } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
-import novaLogo from "@/assets/nova-logo.png.asset.json";
 
 
 export const Route = createFileRoute("/")({
@@ -41,13 +42,30 @@ function Index() {
   const chargerSites = useServerFn(listerSitesPublics);
   const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
 
-  useEffect(() => {
-    setOrigine(window.location.origin);
-  }, []);
+  const chargerProfil = useServerFn(monProfil);
+  const [siteConnecte, setSiteConnecte] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sites || sites.length === 0) return;
-    if (!siteId || !sites.some((s) => s.id === siteId)) setSiteId(sites[0]!.id);
+    setOrigine(window.location.origin);
+    // Si une hôtesse est connectée, l'écran affiche automatiquement son site.
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+      try {
+        const p = await chargerProfil();
+        if (p.siteId) setSiteConnecte(p.siteId);
+      } catch {
+        /* ignoré */
+      }
+    });
+  }, [chargerProfil]);
+
+  useEffect(() => {
+    if (!siteParam && siteConnecte) setSiteId(siteConnecte);
+  }, [siteParam, siteConnecte]);
+
+  useEffect(() => {
+    if (!sites || sites.length === 0 || !siteId) return;
+    if (!sites.some((s) => s.id === siteId)) setSiteId("");
   }, [sites, siteId]);
 
   const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
@@ -74,15 +92,8 @@ function Index() {
               className="h-auto w-20 drop-shadow-sm sm:w-24"
             />
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <img
-              src={novaLogo.url}
-              alt="NOVA"
-              className="h-8 w-auto drop-shadow-sm sm:h-10"
-            />
-            <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">
-              Pass
-            </span>
+          <div className="flex items-center justify-center">
+            <SiteBrand logoUrl={siteActif?.logo_url} nom={siteActif?.nom} />
           </div>
           <div className="flex justify-end">
             <Link
@@ -100,47 +111,22 @@ function Index() {
           </p>
           <div className="w-full max-w-lg text-center sm:text-left">
             <h1 className="text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
-              Bienvenue chez Nova Serenity
+              {siteActif ? `Bienvenue chez ${siteActif.nom}` : "Bienvenue chez Nova Serenity"}
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
 
-            {siteActif && (
-              <p className="mt-3 text-sm text-hero-muted">
-                {siteActif.nom}
-                {[siteActif.adresse, siteActif.code_postal, siteActif.ville].filter(Boolean).length >
-                  0 && (
-                  <>
-                    {" — "}
-                    {[siteActif.adresse, siteActif.code_postal, siteActif.ville]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </>
-                )}
-              </p>
-            )}
+            
 
 
 
             <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
               {url ? (
-                <QRCodeSVG
-                  value={url}
-                  size={244}
-                  level="H"
-                  marginSize={2}
-                  fgColor="var(--qr-foreground)"
-                  bgColor="var(--qr-background)"
-                  imageSettings={{
-                    src: novaLogo.url,
-                    width: 78,
-                    height: 26,
-                    excavate: true,
-                  }}
-                  aria-label="QR code vers le formulaire visiteur Nova Serenity"
-                />
+                <div aria-label="QR code vers le formulaire visiteur">
+                  <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />
+                </div>
               ) : (
                 <div className="h-[244px] w-[244px] animate-pulse rounded-md bg-muted" />
               )}
