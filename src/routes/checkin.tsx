@@ -6,7 +6,7 @@ import { enregistrerVisite, listerSitesPublics } from "@/lib/visites.functions";
 
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
-import novaLogo from "@/assets/nova-logo.png.asset.json";
+import { SiteBrand } from "@/components/site-brand";
 
 export const Route = createFileRoute("/checkin")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
@@ -103,12 +103,7 @@ function Checkin() {
               to="/"
               className="flex items-center gap-3 sm:gap-4"
             >
-              <img
-                src={novaLogo.url}
-                alt="NOVA"
-                className="h-8 w-auto drop-shadow-sm sm:h-10"
-              />
-              <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
+              <SiteBrand logoUrl={siteActif?.logo_url} nom={siteActif?.nom} />
             </Link>
             <Link
               to="/registre"
@@ -150,12 +145,7 @@ function Checkin() {
             to="/"
             className="flex items-center gap-3 sm:gap-4"
           >
-            <img
-              src={novaLogo.url}
-              alt="NOVA"
-              className="h-8 w-auto drop-shadow-sm sm:h-10"
-            />
-            <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
+            <SiteBrand logoUrl={siteActif?.logo_url} nom={siteActif?.nom} />
           </Link>
           <Link
             to="/registre"
@@ -283,6 +273,12 @@ function Checkin() {
               >
                 {etat === "envoi" ? "Enregistrement…" : "Valider mon arrivée"}
               </button>
+              <p className="pt-1 text-center text-[11px] leading-snug text-hero-muted/80">
+                Données collectées uniquement pour la sécurité et l'accueil du site, conservées
+                pour une durée limitée et jamais transmises à des tiers. Conformément au RGPD,
+                vous pouvez exercer vos droits d'accès, de rectification et d'effacement auprès
+                de l'accueil.
+              </p>
             </form>
           </div>
         </section>
