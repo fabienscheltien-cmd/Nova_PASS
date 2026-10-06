@@ -21,6 +21,7 @@ const siteSchema = z.object({
   ville: z.string().trim().max(120).default(""),
   pays: z.string().trim().max(80).default("France"),
   emailAccueil: z.string().trim().email().max(255).or(z.literal("")).optional(),
+  logoUrl: z.string().max(700000).nullable().optional(),
 });
 
 export const enregistrerSite = createServerFn({ method: "POST" })
@@ -35,6 +36,7 @@ export const enregistrerSite = createServerFn({ method: "POST" })
       ville: data.ville,
       pays: data.pays,
       email_accueil: data.emailAccueil || null,
+      ...(data.logoUrl !== undefined ? { logo_url: data.logoUrl } : {}),
     };
     const requete = data.id
       ? context.supabase.from("sites").update(ligne).eq("id", data.id)
@@ -150,6 +152,71 @@ export const supprimerCompte = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("profils").delete().eq("user_id", data.userId);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+function motDePasseAleatoire() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const special = "@#!%";
+  const bytes = new Uint32Array(14);
+  crypto.getRandomValues(bytes);
+  let mdp = "";
+  for (let i = 0; i < 12; i++) mdp += alphabet[bytes[i]! % alphabet.length];
+  return mdp + special[bytes[12]! % special.length] + String(bytes[13]! % 10);
+}
+
+/** Génère un nouveau mot de passe, l'applique et le renvoie une seule fois en clair. */
+export const genererMotDePasse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await exigerSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const motDePasse = motDePasseAleatoire();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: motDePasse });
+    if (error) throw new Error(error.message);
+    return { motDePasse };
+  });
+
+/** Autorise une adresse d'accueil : la personne reçoit un e-mail pour choisir son mot de passe. */
+export const inviterCompte = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        email: z.string().trim().email().max(255),
+        siteId: z.string().uuid(),
+        origine: z.string().url().max(300),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await exigerSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = data.email.toLowerCase();
+    const { data: inv, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${data.origine}/reset-password`,
+    });
+    if (error || !inv.user) throw new Error(error?.message ?? "Invitation impossible");
+    await supabaseAdmin.from("profils").upsert({ user_id: inv.user.id, email, site_id: data.siteId });
+    await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: inv.user.id, role: "hotesse" }, { onConflict: "user_id,role" });
+    return { ok: true };
+  });
+
+/** Renvoie un e-mail permettant de (re)choisir son mot de passe. */
+export const envoyerLienMotDePasse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ email: z.string().email(), origine: z.string().url().max(300) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await exigerSuperAdmin(context);
+    const { error } = await context.supabase.auth.resetPasswordForEmail(data.email, {
+      redirectTo: `${data.origine}/reset-password`,
+    });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
