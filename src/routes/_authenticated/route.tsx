@@ -30,7 +30,7 @@ function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border bg-card print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
           <Link to="/" className="text-sm font-semibold tracking-tight text-foreground">
             Nova Pass
@@ -38,6 +38,12 @@ function Layout() {
           <nav className="flex gap-4 text-sm">
             <Link to="/registre" className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
               Registre
+            </Link>
+            <Link to="/statistiques" className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
+              Statistiques
+            </Link>
+            <Link to="/affiche" search={{ site: undefined }} className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
+              Affiche PDF
             </Link>
             {profil?.estSuperAdmin && (
               <>
@@ -68,6 +74,11 @@ function Layout() {
           </div>
         </div>
       </header>
+      {profil && !profil.estSuperAdmin && profil.siteNom && (
+        <p className="mx-auto max-w-6xl px-4 pt-6 text-2xl font-semibold tracking-tight text-foreground print:hidden">
+          Bienvenue chez {profil.siteNom}
+        </p>
+      )}
       <Outlet />
     </div>
   );
