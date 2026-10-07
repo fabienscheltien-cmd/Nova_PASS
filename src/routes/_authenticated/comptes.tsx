@@ -3,7 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { listerSites } from "@/lib/visites.functions";
-import { listerComptes, creerCompte, modifierCompte, supprimerCompte } from "@/lib/admin.functions";
+import {
+  listerComptes,
+  modifierCompte,
+  supprimerCompte,
+  inviterCompte,
+  genererMotDePasse,
+  envoyerLienMotDePasse,
+} from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/comptes")({
   head: () => ({
@@ -11,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/comptes")({
       { title: "Comptes d'accueil — Nova Pass" },
       {
         name: "description",
-        content: "Créez les comptes hôtesses, rattachez-les à un site et gérez leurs accès.",
+        content: "Invitez les adresses d'accueil, rattachez-les à un site et gérez leurs accès.",
       },
       { property: "og:title", content: "Comptes d'accueil — Nova Pass" },
       { property: "og:description", content: "Gestion des accès au registre des visiteurs." },
@@ -24,41 +31,75 @@ export const Route = createFileRoute("/_authenticated/comptes")({
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40";
+const petitBouton =
+  "rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent disabled:opacity-50";
 
 function Comptes() {
   const queryClient = useQueryClient();
   const chargerComptes = useServerFn(listerComptes);
   const chargerSites = useServerFn(listerSites);
-  const creer = useServerFn(creerCompte);
+  const inviter = useServerFn(inviterCompte);
+  const generer = useServerFn(genererMotDePasse);
+  const envoyerLien = useServerFn(envoyerLienMotDePasse);
   const modifier = useServerFn(modifierCompte);
   const supprimer = useServerFn(supprimerCompte);
 
-  const { data: comptes, isLoading } = useQuery({
-    queryKey: ["comptes"],
-    queryFn: () => chargerComptes(),
-  });
+  const { data: comptes, isLoading } = useQuery({ queryKey: ["comptes"], queryFn: () => chargerComptes() });
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
 
   const [email, setEmail] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
   const [siteId, setSiteId] = useState("");
-  const [superAdmin, setSuperAdmin] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const [mdpAffiche, setMdpAffiche] = useState<{ email: string; motDePasse: string } | null>(null);
+  const [copie, setCopie] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onInviter(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
     setMessage(null);
+    setEnvoi(true);
     try {
-      await creer({ data: { email, motDePasse, siteId, superAdmin } });
+      await inviter({ data: { email, siteId, origine: window.location.origin } });
+      setMessage(`Invitation envoyée à ${email}. La personne choisira son mot de passe depuis l'e-mail reçu.`);
       setEmail("");
-      setMotDePasse("");
-      setSuperAdmin(false);
-      setMessage("Compte créé. Communiquez l'e-mail et le mot de passe à la personne.");
       queryClient.invalidateQueries({ queryKey: ["comptes"] });
-    } catch (e) {
-      setErreur(e instanceof Error ? e.message : "Le compte n'a pas pu être créé.");
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "L'invitation n'a pas pu être envoyée.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  async function onGenerer(userId: string, mail: string) {
+    if (!confirm(`Générer un nouveau mot de passe pour ${mail} ? L'ancien ne fonctionnera plus.`)) return;
+    setOccupe(userId);
+    setErreur(null);
+    setMessage(null);
+    try {
+      const r = await generer({ data: { userId } });
+      setCopie(false);
+      setMdpAffiche({ email: mail, motDePasse: r.motDePasse });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Génération impossible.");
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  async function onLien(userId: string, mail: string) {
+    setOccupe(userId);
+    setErreur(null);
+    setMessage(null);
+    try {
+      await envoyerLien({ data: { email: mail, origine: window.location.origin } });
+      setMessage(`Lien de réinitialisation envoyé à ${mail}.`);
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Envoi impossible.");
+    } finally {
+      setOccupe(null);
     }
   }
 
@@ -67,20 +108,13 @@ function Comptes() {
     queryClient.invalidateQueries({ queryKey: ["comptes"] });
   }
 
-  async function reinitialiser(userId: string) {
-    const nouveau = prompt("Nouveau mot de passe (8 caractères minimum) :");
-    if (!nouveau) return;
-    await modifier({ data: { userId, motDePasse: nouveau } });
-    alert("Mot de passe mis à jour.");
-  }
-
-  async function onSupprimer(userId: string) {
-    if (!confirm("Supprimer définitivement ce compte ?")) return;
+  async function onSupprimer(userId: string, mail: string) {
+    if (!confirm(`Retirer l'accès de ${mail} ? Le compte sera supprimé.`)) return;
     try {
       await supprimer({ data: { userId } });
       queryClient.invalidateQueries({ queryKey: ["comptes"] });
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Suppression impossible.");
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Suppression impossible.");
     }
   }
 
@@ -88,68 +122,48 @@ function Comptes() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Comptes d'accueil</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Vous seule décidez des adresses autorisées à consulter le registre.
+        Vous seule décidez des adresses autorisées. Chaque adresse est rattachée à un seul site.
       </p>
 
-      <form
-        onSubmit={onSubmit}
-        className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
-      >
+      <form onSubmit={onInviter} className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div>
-          <label className="text-xs font-medium text-muted-foreground">E-mail</label>
-          <input
-            className={inputClass}
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="invite-email">E-mail de l'accueil</label>
+          <input id="invite-email" className={inputClass} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accueil@exemple.fr" />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Mot de passe initial</label>
-          <input
-            className={inputClass}
-            type="text"
-            required
-            minLength={8}
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">Site rattaché</label>
-          <select
-            className={inputClass}
-            required
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value)}
-          >
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="invite-site">Site rattaché</label>
+          <select id="invite-site" className={inputClass} required value={siteId} onChange={(e) => setSiteId(e.target.value)}>
             <option value="">Choisir un site…</option>
             {(sites ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nom}
-              </option>
+              <option key={s.id} value={s.id}>{s.nom}</option>
             ))}
           </select>
         </div>
-        <label className="flex items-end gap-2 pb-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={superAdmin}
-            onChange={(e) => setSuperAdmin(e.target.checked)}
-          />
-          Super administrateur (accès à tous les sites)
-        </label>
-
-        {erreur && <p className="text-sm text-destructive sm:col-span-2">{erreur}</p>}
-        {message && <p className="text-sm text-primary sm:col-span-2">{message}</p>}
-
-        <div className="sm:col-span-2">
-          <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-            Créer le compte
-          </button>
-        </div>
+        <button disabled={envoi} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">
+          {envoi ? "Envoi…" : "Inviter par e-mail"}
+        </button>
       </form>
+
+      {erreur && <p role="alert" className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{erreur}</p>}
+      {message && <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{message}</p>}
+
+      {mdpAffiche && (
+        <div role="dialog" aria-label="Nouveau mot de passe" className="mt-4 rounded-xl border border-primary/40 bg-card p-5">
+          <p className="text-sm text-foreground">
+            Nouveau mot de passe pour <strong>{mdpAffiche.email}</strong> — affiché une seule fois :
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <code data-testid="mdp-genere" className="rounded-md bg-muted px-3 py-2 font-mono text-base text-foreground">{mdpAffiche.motDePasse}</code>
+            <button
+              onClick={() => navigator.clipboard.writeText(mdpAffiche.motDePasse).then(() => setCopie(true))}
+              className={petitBouton}
+            >
+              {copie ? "Copié ✓" : "Copier"}
+            </button>
+            <button onClick={() => setMdpAffiche(null)} className={petitBouton}>Fermer</button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
@@ -163,45 +177,42 @@ function Comptes() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                  Chargement…
-                </td>
-              </tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Chargement…</td></tr>
             )}
             {(comptes ?? []).map((c) => (
               <tr key={c.userId} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-medium text-foreground">{c.email}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {c.estSuperAdmin ? "Super admin" : "Hôtesse"}
-                </td>
+                <td className="px-4 py-3 text-muted-foreground">{c.estSuperAdmin ? "Super admin" : "Hôtesse"}</td>
                 <td className="px-4 py-3">
-                  <select
-                    value={c.siteId ?? ""}
-                    onChange={(e) => changerSite(c.userId, e.target.value)}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
-                  >
-                    <option value="">Aucun</option>
-                    {(sites ?? []).map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nom}
-                      </option>
-                    ))}
-                  </select>
+                  {c.estSuperAdmin ? (
+                    <span className="text-muted-foreground">Tous les sites</span>
+                  ) : (
+                    <select
+                      value={c.siteId ?? ""}
+                      onChange={(e) => changerSite(c.userId, e.target.value)}
+                      className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
+                    >
+                      <option value="">Aucun</option>
+                      {(sites ?? []).map((s) => (
+                        <option key={s.id} value={s.id}>{s.nom}</option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
-                  <button
-                    onClick={() => reinitialiser(c.userId)}
-                    className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
-                  >
-                    Mot de passe
-                  </button>
-                  <button
-                    onClick={() => onSupprimer(c.userId)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:bg-accent"
-                  >
-                    Supprimer
-                  </button>
+                  <div className="flex justify-end gap-2">
+                    <button disabled={occupe === c.userId} onClick={() => onGenerer(c.userId, c.email)} className={petitBouton}>
+                      Générer un mot de passe
+                    </button>
+                    <button disabled={occupe === c.userId} onClick={() => onLien(c.userId, c.email)} className={petitBouton}>
+                      Renvoyer le lien
+                    </button>
+                    {!c.estSuperAdmin && (
+                      <button onClick={() => onSupprimer(c.userId, c.email)} className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:bg-accent">
+                        Retirer l'accès
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
