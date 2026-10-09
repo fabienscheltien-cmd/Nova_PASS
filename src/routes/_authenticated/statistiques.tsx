@@ -8,7 +8,10 @@ export const Route = createFileRoute("/_authenticated/statistiques")({
   head: () => ({
     meta: [
       { title: "Statistiques de fréquentation — Nova Pass" },
-      { name: "description", content: "Nombre de visiteurs par jour, par semaine et par mois, par site." },
+      {
+        name: "description",
+        content: "Nombre de visiteurs par jour, par semaine et par mois, par site.",
+      },
       { property: "og:title", content: "Statistiques de fréquentation — Nova Pass" },
       { property: "og:description", content: "Suivi de la fréquentation des accueils." },
       { property: "og:type", content: "website" },
@@ -33,10 +36,18 @@ function cle(d: Date, p: Periode) {
 function libelle(k: string, p: Periode) {
   if (p === "mois") {
     const [a, m] = k.split("-");
-    return new Date(Number(a), Number(m) - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    return new Date(Number(a), Number(m) - 1, 1).toLocaleDateString("fr-FR", {
+      month: "long",
+      year: "numeric",
+    });
   }
   const d = new Date(`${k}T00:00:00`);
-  const txt = d.toLocaleDateString("fr-FR", { weekday: p === "jour" ? "short" : undefined, day: "2-digit", month: "short", year: "numeric" });
+  const txt = d.toLocaleDateString("fr-FR", {
+    weekday: p === "jour" ? "short" : undefined,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
   return p === "semaine" ? `Semaine du ${txt}` : txt;
 }
 
@@ -56,9 +67,16 @@ function Statistiques() {
     d.setFullYear(d.getFullYear() - 1);
     return d.toISOString().slice(0, 10);
   }, []);
+  // Statistiques toujours par site : la super admin choisit le site (le premier
+  // par défaut), un compte de site voit uniquement le sien.
+  const siteChoisi = profil?.estSuperAdmin ? siteId || sites?.[0]?.id : undefined;
+  const nomSite = profil?.estSuperAdmin
+    ? (sites ?? []).find((s) => s.id === siteChoisi)?.nom
+    : profil?.siteNom;
   const { data: visites, isLoading } = useQuery({
-    queryKey: ["stats", siteId, du],
-    queryFn: () => chargerVisites({ data: { du, siteId: siteId || undefined } }),
+    queryKey: ["stats", siteChoisi, du],
+    queryFn: () => chargerVisites({ data: { du, siteId: siteChoisi } }),
+    enabled: profil !== undefined && (!profil.estSuperAdmin || siteChoisi !== undefined),
   });
 
   const { lignes, max, totaux } = useMemo(() => {
@@ -78,7 +96,8 @@ function Statistiques() {
       else d.setMonth(d.getMonth() - 1, 1);
     }
     const lignes = cles.map((k) => ({ k, n: comptes.get(k) ?? 0 }));
-    const compter = (p: Periode) => (visites ?? []).filter((v) => cle(new Date(v.arrivee_at), p) === cle(maintenant, p)).length;
+    const compter = (p: Periode) =>
+      (visites ?? []).filter((v) => cle(new Date(v.arrivee_at), p) === cle(maintenant, p)).length;
     return {
       lignes,
       max: Math.max(1, ...lignes.map((l) => l.n)),
@@ -91,28 +110,40 @@ function Statistiques() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Statistiques</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Nombre de visiteurs enregistrés.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Nombre de visiteurs enregistrés{nomSite ? ` · ${nomSite}` : ""}.
+          </p>
         </div>
         {profil?.estSuperAdmin && (
-          <select
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">Tous les sites</option>
-            {(sites ?? []).map((s) => (
-              <option key={s.id} value={s.id}>{s.nom}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground" htmlFor="stats-site">
+              Site
+            </label>
+            <select
+              id="stats-site"
+              value={siteChoisi ?? ""}
+              onChange={(e) => setSiteId(e.target.value)}
+              className="mt-1 min-w-56 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+            >
+              {(sites ?? []).length === 0 && <option value="">Aucun site</option>}
+              {(sites ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nom}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {([
-          ["Aujourd'hui", totaux.jour],
-          ["Cette semaine", totaux.semaine],
-          ["Ce mois-ci", totaux.mois],
-        ] as const).map(([t, n]) => (
+        {(
+          [
+            ["Aujourd'hui", totaux.jour],
+            ["Cette semaine", totaux.semaine],
+            ["Ce mois-ci", totaux.mois],
+          ] as const
+        ).map(([t, n]) => (
           <div key={t} className="rounded-xl border border-border bg-card p-5">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t}</p>
             <p className="mt-2 text-4xl font-semibold text-foreground">{isLoading ? "…" : n}</p>
@@ -135,9 +166,14 @@ function Statistiques() {
         <ul className="mt-5 space-y-2">
           {lignes.map((l) => (
             <li key={l.k} className="grid grid-cols-[170px_1fr_40px] items-center gap-3 text-sm">
-              <span className="truncate capitalize text-muted-foreground">{libelle(l.k, periode)}</span>
+              <span className="truncate capitalize text-muted-foreground">
+                {libelle(l.k, periode)}
+              </span>
               <span className="h-3 overflow-hidden rounded-full bg-muted">
-                <span className="block h-full rounded-full bg-primary" style={{ width: `${(l.n / max) * 100}%` }} />
+                <span
+                  className="block h-full rounded-full bg-primary"
+                  style={{ width: `${(l.n / max) * 100}%` }}
+                />
               </span>
               <span className="text-right font-medium text-foreground">{l.n}</span>
             </li>
