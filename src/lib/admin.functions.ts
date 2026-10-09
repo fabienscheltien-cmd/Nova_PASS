@@ -195,8 +195,8 @@ export const genererMotDePasse = createServerFn({ method: "POST" })
 
 /**
  * Crée (ou rattache) l'accès d'un site sans dépendre de l'envoi d'un e-mail :
- * le compte est créé confirmé, avec un mot de passe aléatoire inconnu. La super
- * admin choisit ensuite « Définir le mot de passe » ou « Envoyer un lien ».
+ * le compte est créé confirmé, avec le mot de passe choisi par la super admin,
+ * ou à défaut un mot de passe aléatoire inconnu (à définir ensuite ou via un lien).
  */
 export const inviterCompte = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -205,6 +205,7 @@ export const inviterCompte = createServerFn({ method: "POST" })
       .object({
         email: z.string().trim().email().max(255),
         siteId: z.string().uuid(),
+        motDePasse: z.string().min(8).max(72).optional(),
       })
       .parse(data),
   )
@@ -216,7 +217,7 @@ export const inviterCompte = createServerFn({ method: "POST" })
     let userId: string | undefined;
     const { data: cree, error } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: motDePasseAleatoire() + motDePasseAleatoire(),
+      password: data.motDePasse ?? motDePasseAleatoire() + motDePasseAleatoire(),
       email_confirm: true,
     });
     if (cree?.user) {
@@ -234,6 +235,13 @@ export const inviterCompte = createServerFn({ method: "POST" })
       }
     }
     if (!userId) throw new Error(error?.message ?? "Création de l'accès impossible");
+    if (!cree?.user && data.motDePasse) {
+      const { error: errMdp } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: data.motDePasse,
+        email_confirm: true,
+      });
+      if (errMdp) throw new Error(errMdp.message);
+    }
 
     const { error: errProfil } = await supabaseAdmin
       .from("profils")
