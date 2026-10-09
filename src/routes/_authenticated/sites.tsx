@@ -4,7 +4,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { SiteQr } from "@/components/site-brand";
 import { listerSites } from "@/lib/visites.functions";
-import { enregistrerSite, supprimerSite } from "@/lib/admin.functions";
+import {
+  enregistrerSite,
+  supprimerSite,
+  listerComptes,
+  inviterCompte,
+  genererMotDePasse,
+  envoyerLienMotDePasse,
+  supprimerCompte,
+} from "@/lib/admin.functions";
+
+const petitBouton =
+  "rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent disabled:opacity-50";
 
 export const Route = createFileRoute("/_authenticated/sites")({
   head: () => ({
@@ -42,11 +53,21 @@ function Sites() {
   const charger = useServerFn(listerSites);
   const enregistrer = useServerFn(enregistrerSite);
   const supprimer = useServerFn(supprimerSite);
+  const chargerComptes = useServerFn(listerComptes);
+  const inviter = useServerFn(inviterCompte);
+  const generer = useServerFn(genererMotDePasse);
+  const envoyerLien = useServerFn(envoyerLienMotDePasse);
+  const supprimerAcces = useServerFn(supprimerCompte);
 
   const { data: sites, isLoading, isError } = useQuery({
     queryKey: ["sites"],
     queryFn: () => charger(),
   });
+  const { data: comptes } = useQuery({ queryKey: ["comptes"], queryFn: () => chargerComptes() });
+  const [message, setMessage] = useState<string | null>(null);
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const [mdpAffiche, setMdpAffiche] = useState<{ email: string; motDePasse: string } | null>(null);
+  const [copie, setCopie] = useState(false);
 
   const [form, setForm] = useState(vide);
   const [origine, setOrigine] = useState("");
@@ -82,22 +103,64 @@ function Sites() {
   const set = (k: keyof typeof vide) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  function compteDuSite(siteId: string) {
+    return (comptes ?? []).find((c) => !c.estSuperAdmin && c.siteId === siteId) ?? null;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
+    setMessage(null);
     try {
-      await enregistrer({ data: form });
+      const r = await enregistrer({ data: form });
+      const mail = form.emailAccueil.trim().toLowerCase();
+      const actuel = compteDuSite(r.id);
+      if (mail && actuel?.email !== mail) {
+        if (actuel) await supprimerAcces({ data: { userId: actuel.userId } });
+        await inviter({ data: { email: mail, siteId: r.id, origine: window.location.origin } });
+        setMessage(`Accès créé : ${mail} a reçu un e-mail pour choisir son mot de passe.`);
+      }
       setForm(vide);
       queryClient.invalidateQueries({ queryKey: ["sites"] });
-    } catch {
-      setErreur("Le site n'a pas pu être enregistré.");
+      queryClient.invalidateQueries({ queryKey: ["comptes"] });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Le site n'a pas pu être enregistré.");
+    }
+  }
+
+  async function onGenerer(userId: string, mail: string) {
+    if (!confirm(`Générer un nouveau mot de passe pour ${mail} ? L'ancien ne fonctionnera plus.`)) return;
+    setOccupe(userId);
+    try {
+      const r = await generer({ data: { userId } });
+      setCopie(false);
+      setMdpAffiche({ email: mail, motDePasse: r.motDePasse });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Génération impossible.");
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  async function onLien(userId: string, mail: string) {
+    setOccupe(userId);
+    try {
+      await envoyerLien({ data: { email: mail, origine: window.location.origin } });
+      setMessage(`Lien de mot de passe envoyé à ${mail}.`);
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Envoi impossible.");
+    } finally {
+      setOccupe(null);
     }
   }
 
   async function onSupprimer(id: string) {
-    if (!confirm("Supprimer ce site ? Les visites déjà enregistrées sont conservées.")) return;
+    if (!confirm("Supprimer ce site et son accès ? Les visites déjà enregistrées sont conservées.")) return;
+    const c = compteDuSite(id);
+    if (c) await supprimerAcces({ data: { userId: c.userId } });
     await supprimer({ data: { id } });
     queryClient.invalidateQueries({ queryKey: ["sites"] });
+    queryClient.invalidateQueries({ queryKey: ["comptes"] });
   }
 
   return (
