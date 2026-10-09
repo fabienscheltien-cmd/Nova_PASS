@@ -14,91 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      courriers_colis: {
-        Row: {
-          categorie: Database["public"]["Enums"]["categorie_depot"]
-          cree_par: string | null
-          created_at: string
-          description: string
-          destinataire: string
-          expediteur: string
-          id: string
-          recu_at: string
-          site_id: string | null
-        }
-        Insert: {
-          categorie: Database["public"]["Enums"]["categorie_depot"]
-          cree_par?: string | null
-          created_at?: string
-          description?: string
-          destinataire: string
-          expediteur?: string
-          id?: string
-          recu_at?: string
-          site_id?: string | null
-        }
-        Update: {
-          categorie?: Database["public"]["Enums"]["categorie_depot"]
-          cree_par?: string | null
-          created_at?: string
-          description?: string
-          destinataire?: string
-          expediteur?: string
-          id?: string
-          recu_at?: string
-          site_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "courriers_colis_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      objets_trouves: {
-        Row: {
-          cree_par: string | null
-          created_at: string
-          emplacement: string
-          id: string
-          objet: string
-          observation: string
-          site_id: string | null
-          trouve_at: string
-        }
-        Insert: {
-          cree_par?: string | null
-          created_at?: string
-          emplacement?: string
-          id?: string
-          objet: string
-          observation?: string
-          site_id?: string | null
-          trouve_at?: string
-        }
-        Update: {
-          cree_par?: string | null
-          created_at?: string
-          emplacement?: string
-          id?: string
-          objet?: string
-          observation?: string
-          site_id?: string | null
-          trouve_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "objets_trouves_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profils: {
         Row: {
           created_at: string
@@ -212,7 +127,6 @@ export type Database = {
       visites: {
         Row: {
           arrivee_at: string
-          cree_par: string | null
           created_at: string
           entreprise: string
           entreprise_visitee: string
@@ -220,12 +134,10 @@ export type Database = {
           nom: string
           personne_visitee: string
           prenom: string
-          saisie_manuelle: boolean
           site_id: string | null
         }
         Insert: {
           arrivee_at?: string
-          cree_par?: string | null
           created_at?: string
           entreprise: string
           entreprise_visitee: string
@@ -233,12 +145,10 @@ export type Database = {
           nom: string
           personne_visitee: string
           prenom: string
-          saisie_manuelle?: boolean
           site_id?: string | null
         }
         Update: {
           arrivee_at?: string
-          cree_par?: string | null
           created_at?: string
           entreprise?: string
           entreprise_visitee?: string
@@ -246,7 +156,6 @@ export type Database = {
           nom?: string
           personne_visitee?: string
           prenom?: string
-          saisie_manuelle?: boolean
           site_id?: string | null
         }
         Relationships: [
@@ -275,7 +184,6 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "hotesse"
-      categorie_depot: "courrier" | "colis" | "cles" | "autre"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -404,7 +312,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "hotesse"],
-      categorie_depot: ["courrier", "colis", "cles", "autre"],
     },
   },
 } as const
