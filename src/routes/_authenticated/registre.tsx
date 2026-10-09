@@ -30,7 +30,8 @@ export const Route = createFileRoute("/_authenticated/registre")({
       { title: "Registre des visiteurs — Nova Pass" },
       {
         name: "description",
-        content: "Consultez, filtrez par site et par dates, triez et exportez le registre des visiteurs.",
+        content:
+          "Consultez, filtrez par site et par dates, triez et exportez le registre des visiteurs.",
       },
       { property: "og:title", content: "Registre des visiteurs — Nova Pass" },
       { property: "og:description", content: "Historique des arrivées avec filtres et export." },
@@ -52,7 +53,10 @@ function Registre() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Registre</h1>
-      <nav className="mt-4 flex flex-wrap gap-1 border-b border-border" aria-label="Rubriques du registre">
+      <nav
+        className="mt-4 flex flex-wrap gap-1 border-b border-border"
+        aria-label="Rubriques du registre"
+      >
         {(Object.keys(ONGLETS) as Onglet[]).map((o) => (
           <button
             key={o}
@@ -104,12 +108,7 @@ function adresseSite(v: Visite) {
 }
 
 type ColTri =
-  | "arrivee_at"
-  | "visiteur"
-  | "entreprise"
-  | "personne_visitee"
-  | "entreprise_visitee"
-  | "site";
+  "arrivee_at" | "visiteur" | "entreprise" | "personne_visitee" | "entreprise_visitee" | "site";
 type SensTri = "asc" | "desc";
 
 function Visiteurs() {
@@ -117,8 +116,8 @@ function Visiteurs() {
   const chargerSites = useServerFn(listerSites);
   const chargerProfil = useServerFn(monProfil);
 
-  const [du, setDu] = useState("");
-  const [au, setAu] = useState("");
+  const [date, setDate] = useState("");
+  const [heure, setHeure] = useState("");
   const [recherche, setRecherche] = useState("");
   const [site, setSite] = useState("");
   const [tri, setTri] = useState<ColTri>("arrivee_at");
@@ -128,12 +127,13 @@ function Visiteurs() {
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["visites", du, au, recherche, site],
+    queryKey: ["visites", date, heure, recherche, site],
     queryFn: () =>
       charger({
         data: {
-          du: du || undefined,
-          au: au || undefined,
+          du: date || undefined,
+          au: date || undefined,
+          heure: date && heure ? heure : undefined,
           recherche,
           siteId: site || undefined,
         },
@@ -237,28 +237,36 @@ function Visiteurs() {
           </div>
         )}
         <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="du">
-            Du
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="date">
+            Date
           </label>
           <input
-            id="du"
+            id="date"
             type="date"
-            value={du}
-            onChange={(e) => setDu(e.target.value)}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
             className={`mt-1 ${inputClass}`}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="au">
-            Au
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="heure">
+            Heure
           </label>
-          <input
-            id="au"
-            type="date"
-            value={au}
-            onChange={(e) => setAu(e.target.value)}
-            className={`mt-1 ${inputClass}`}
-          />
+          <select
+            id="heure"
+            value={heure}
+            disabled={!date}
+            title={date ? undefined : "Choisissez d'abord une date"}
+            onChange={(e) => setHeure(e.target.value)}
+            className={`mt-1 ${inputClass} disabled:opacity-50`}
+          >
+            <option value="">Toute la journée</option>
+            {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => (
+              <option key={h} value={h}>
+                {h} h – {h} h 59
+              </option>
+            ))}
+          </select>
         </div>
         <div className="min-w-[200px] flex-1">
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="q">
@@ -274,8 +282,8 @@ function Visiteurs() {
         </div>
         <button
           onClick={() => {
-            setDu("");
-            setAu("");
+            setDate("");
+            setHeure("");
             setRecherche("");
             setSite("");
           }}
