@@ -6,7 +6,10 @@ import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   AjoutVisiteur,
+  BarreFiltres,
   BoutonsExport,
+  filtresVides,
+  versRequete,
   exporter,
   RegistreDepots,
   RegistreObjets,
@@ -117,9 +120,7 @@ function Visiteurs() {
   const chargerSites = useServerFn(listerSites);
   const chargerProfil = useServerFn(monProfil);
 
-  const [date, setDate] = useState("");
-  const [heure, setHeure] = useState("");
-  const [recherche, setRecherche] = useState("");
+  const [filtres, setFiltres] = useState(filtresVides);
   const [tri, setTri] = useState<ColTri>("arrivee_at");
   const [sens, setSens] = useState<SensTri>("desc");
 
@@ -128,16 +129,10 @@ function Visiteurs() {
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["visites", date, heure, recherche, siteTravail],
+    queryKey: ["visites", filtres, siteTravail],
     queryFn: () =>
       charger({
-        data: {
-          du: date || undefined,
-          au: date || undefined,
-          heure: date && heure ? heure : undefined,
-          recherche,
-          siteId: siteTravail,
-        },
+        data: versRequete(filtres, siteTravail),
       }),
     refetchInterval: 30000,
   });
@@ -216,62 +211,11 @@ function Visiteurs() {
 
       <AjoutVisiteur profil={profil} />
 
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="date">
-            Date
-          </label>
-          <input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={`mt-1 ${inputClass}`}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="heure">
-            Heure
-          </label>
-          <select
-            id="heure"
-            value={heure}
-            disabled={!date}
-            title={date ? undefined : "Choisissez d'abord une date"}
-            onChange={(e) => setHeure(e.target.value)}
-            className={`mt-1 ${inputClass} disabled:opacity-50`}
-          >
-            <option value="">Toute la journée</option>
-            {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => (
-              <option key={h} value={h}>
-                {h} h – {h} h 59
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="min-w-[200px] flex-1">
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="q">
-            Recherche
-          </label>
-          <input
-            id="q"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Nom, entreprise, personne visitée…"
-            className={`mt-1 w-full ${inputClass}`}
-          />
-        </div>
-        <button
-          onClick={() => {
-            setDate("");
-            setHeure("");
-            setRecherche("");
-          }}
-          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-accent"
-        >
-          Réinitialiser
-        </button>
-      </div>
+      <BarreFiltres
+        filtres={filtres}
+        onChange={setFiltres}
+        placeholder="Nom, entreprise, personne visitée…"
+      />
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">

@@ -48,7 +48,11 @@ function Affiche() {
 
   // Une hôtesse n'imprime que l'affiche de son propre site.
   const siteAnalyse = useSiteAnalyse();
-  const siteId = profil?.estSuperAdmin ? (siteParam ?? (siteAnalyse || undefined)) : profil?.siteId;
+  // Toujours un site : celui de l'URL, sinon le site analysé ou le premier site
+  // (super admin), sinon le site du compte. Le QR et l'impression ne sont jamais bloqués.
+  const siteId = profil?.estSuperAdmin
+    ? (siteParam ?? (siteAnalyse || undefined) ?? sites?.[0]?.id)
+    : (profil?.siteId ?? undefined);
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
   const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
 

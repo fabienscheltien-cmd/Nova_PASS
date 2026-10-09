@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { heureParisVersUtc } from "@/lib/fuseau";
+import { bornesParis } from "@/lib/fuseau";
 import { z } from "zod";
 
 /*
@@ -26,9 +26,12 @@ const instantSaisi = z
   }, "Date hors plage (31 jours maximum dans le passé)");
 
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const heureMinute = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const filtresBase = z.object({
   du: jour.optional(),
+  heureDu: heureMinute.optional(),
   au: jour.optional(),
+  heureAu: heureMinute.optional(),
   recherche: z.string().max(120).optional(),
   siteId: z.string().uuid().optional(),
 });
@@ -71,8 +74,9 @@ function filtrer<Q>(
 ): Q {
   let q = requete as unknown as Requete;
   if (f.siteId) q = q.eq("site_id", f.siteId);
-  if (f.du) q = q.gte(colonneDate, heureParisVersUtc(f.du, "00:00:00").toISOString());
-  if (f.au) q = q.lte(colonneDate, heureParisVersUtc(f.au, "23:59:59.999").toISOString());
+  const { debut, fin } = bornesParis(f);
+  if (debut) q = q.gte(colonneDate, debut);
+  if (fin) q = q.lte(colonneDate, fin);
   const terme = f.recherche?.trim();
   if (terme) {
     const like = `%${terme.replace(/[%,()]/g, "")}%`;
@@ -140,19 +144,26 @@ export type ObjetTrouve = {
   objet: string;
   emplacement: string;
   observation: string;
+  statut: "en_attente" | "restitue";
+  statut_at: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
 
 export const listerObjetsTrouves = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => filtresBase.parse(data ?? {}))
+  .inputValidator((data: unknown) =>
+    filtresBase.extend({ statut: z.enum(["en_attente", "restitue"]).optional() }).parse(data ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const lignes = await toutesLesPages((debut, fin) =>
       filtrer(
         context.supabase
           .from("objets_trouves")
-          .select("id, trouve_at, objet, emplacement, observation, site_id, sites(nom)")
+          .select(
+            "id, trouve_at, objet, emplacement, observation, statut, statut_at, site_id, sites(nom)",
+          )
+          .match(data.statut ? { statut: data.statut } : {})
           .order("trouve_at", { ascending: false })
           .order("id")
           .range(debut, fin),
@@ -199,6 +210,8 @@ export type Depot = {
   destinataire: string;
   expediteur: string;
   description: string;
+  statut: "recu" | "remis";
+  statut_at: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
@@ -206,19 +219,25 @@ export type Depot = {
 export const listerDepots = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    filtresBase.extend({ categorie: z.enum(CATEGORIES_DEPOT).optional() }).parse(data ?? {}),
+    filtresBase
+      .extend({
+        categorie: z.enum(CATEGORIES_DEPOT).optional(),
+        statut: z.enum(["recu", "remis"]).optional(),
+      })
+      .parse(data ?? {}),
   )
   .handler(async ({ data, context }) => {
     const lignes = await toutesLesPages((debut, fin) => {
       let q = context.supabase
         .from("courriers_colis")
         .select(
-          "id, categorie, recu_at, destinataire, expediteur, description, site_id, sites(nom)",
+          "id, categorie, recu_at, destinataire, expediteur, description, statut, statut_at, site_id, sites(nom)",
         )
         .order("recu_at", { ascending: false })
         .order("id")
         .range(debut, fin);
       if (data.categorie) q = q.eq("categorie", data.categorie);
+      if (data.statut) q = q.eq("statut", data.statut);
       return filtrer(q, "recu_at", ["destinataire", "expediteur", "description"], data);
     });
     return lignes as unknown as Depot[];
@@ -249,5 +268,45 @@ export const ajouterDepot = createServerFn({ method: "POST" })
       cree_par: context.userId,
     });
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Statuts (seule modification permise, à sens unique) ----------
+
+/** Passe un objet trouvé à « restitué » (compte du site uniquement, une seule fois). */
+export const marquerObjetRestitue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await siteCible(context);
+    const { data: lignes, error } = await context.supabase
+      .from("objets_trouves")
+      .update({
+        statut: "restitue",
+        statut_at: new Date().toISOString(),
+        statut_par: context.userId,
+      })
+      .eq("id", data.id)
+      .eq("statut", "en_attente")
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (!lignes?.length) throw new Error("Objet déjà restitué ou non modifiable.");
+    return { ok: true };
+  });
+
+/** Passe un pli / colis / clé à « remis » (compte du site uniquement, une seule fois). */
+export const marquerDepotRemis = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await siteCible(context);
+    const { data: lignes, error } = await context.supabase
+      .from("courriers_colis")
+      .update({ statut: "remis", statut_at: new Date().toISOString(), statut_par: context.userId })
+      .eq("id", data.id)
+      .eq("statut", "recu")
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (!lignes?.length) throw new Error("Déjà remis ou non modifiable.");
     return { ok: true };
   });
