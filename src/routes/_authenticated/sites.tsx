@@ -131,8 +131,10 @@ function Sites() {
       const actuel = compteDuSite(r.id);
       if (mail && actuel?.email !== mail) {
         if (actuel) await supprimerAcces({ data: { userId: actuel.userId } });
-        await inviter({ data: { email: mail, siteId: r.id, origine: window.location.origin } });
-        setMessage(`Accès créé : ${mail} a reçu un e-mail pour choisir son mot de passe.`);
+        await inviter({ data: { email: mail, siteId: r.id } });
+        setMessage(
+          `Accès créé pour ${mail}. Cliquez sur « Définir le mot de passe » ou « Envoyer un lien » sur la ligne du site.`,
+        );
       }
       setForm(vide);
       queryClient.invalidateQueries({ queryKey: ["sites"] });
@@ -154,6 +156,20 @@ function Sites() {
       setSaisieMdp(null);
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Le mot de passe n'a pas pu être enregistré.");
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  async function onCreerAcces(siteId: string, mail: string) {
+    setErreur(null);
+    setOccupe(siteId);
+    try {
+      await inviter({ data: { email: mail, siteId } });
+      setMessage(`Accès créé pour ${mail}. Définissez maintenant son mot de passe ou envoyez-lui un lien.`);
+      queryClient.invalidateQueries({ queryKey: ["comptes"] });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Création de l'accès impossible.");
     } finally {
       setOccupe(null);
     }
@@ -184,7 +200,7 @@ function Sites() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sites</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. L'adresse saisie reçoit un e-mail pour choisir son mot de passe.
+        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. Après l'ajout, définissez le mot de passe de l'accès ou envoyez-lui un lien.
       </p>
       {message && <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{message}</p>}
       {mdpAffiche && (
@@ -355,7 +371,22 @@ function Sites() {
                 <td className="px-4 py-3 text-muted-foreground">
                   {(() => {
                     const c = compteDuSite(s.id);
-                    if (!c) return <span>{s.email_accueil ? `${s.email_accueil} (accès non créé)` : "—"}</span>;
+                    if (!c) {
+                      if (!s.email_accueil) return <span>—</span>;
+                      const mail = s.email_accueil;
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <span>{mail} (accès non créé)</span>
+                          <button
+                            disabled={occupe === s.id}
+                            onClick={() => onCreerAcces(s.id, mail)}
+                            className={petitBouton}
+                          >
+                            Créer l'accès
+                          </button>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="flex flex-col gap-1">
                         <span className="text-foreground">{c.email}</span>

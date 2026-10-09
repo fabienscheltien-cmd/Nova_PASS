@@ -193,7 +193,11 @@ export const genererMotDePasse = createServerFn({ method: "POST" })
     return { motDePasse };
   });
 
-/** Autorise une adresse d'accueil : la personne reçoit un e-mail pour choisir son mot de passe. */
+/**
+ * Crée (ou rattache) l'accès d'un site sans dépendre de l'envoi d'un e-mail :
+ * le compte est créé confirmé, avec un mot de passe aléatoire inconnu. La super
+ * admin choisit ensuite « Définir le mot de passe » ou « Envoyer un lien ».
+ */
 export const inviterCompte = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -201,7 +205,6 @@ export const inviterCompte = createServerFn({ method: "POST" })
       .object({
         email: z.string().trim().email().max(255),
         siteId: z.string().uuid(),
-        origine: z.string().url().max(300),
       })
       .parse(data),
   )
@@ -209,17 +212,36 @@ export const inviterCompte = createServerFn({ method: "POST" })
     await exigerSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = data.email.toLowerCase();
-    const { data: inv, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${data.origine}/reset-password`,
+
+    let userId: string | undefined;
+    const { data: cree, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: motDePasseAleatoire() + motDePasseAleatoire(),
+      email_confirm: true,
     });
-    if (error || !inv.user) throw new Error(error?.message ?? "Invitation impossible");
+    if (cree?.user) {
+      userId = cree.user.id;
+    } else if (error && /already|exists|registered/i.test(error.message)) {
+      // Compte déjà présent (ex. tentative précédente) : on le retrouve et on le rattache.
+      for (let page = 1; page <= 20 && !userId; page++) {
+        const { data: liste, error: errListe } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage: 200,
+        });
+        if (errListe) throw new Error(errListe.message);
+        userId = liste.users.find((u) => u.email?.toLowerCase() === email)?.id;
+        if (liste.users.length < 200) break;
+      }
+    }
+    if (!userId) throw new Error(error?.message ?? "Création de l'accès impossible");
+
     const { error: errProfil } = await supabaseAdmin
       .from("profils")
-      .upsert({ user_id: inv.user.id, email, site_id: data.siteId });
+      .upsert({ user_id: userId, email, site_id: data.siteId });
     if (errProfil) throw new Error(errProfil.message);
     const { error: errRole } = await supabaseAdmin
       .from("user_roles")
-      .upsert({ user_id: inv.user.id, role: "hotesse" }, { onConflict: "user_id,role" });
+      .upsert({ user_id: userId, role: "hotesse" }, { onConflict: "user_id,role" });
     if (errRole) throw new Error(errRole.message);
     return { ok: true };
   });
