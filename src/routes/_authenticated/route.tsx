@@ -46,14 +46,9 @@ function Layout() {
               Affiche PDF
             </Link>
             {profil?.estSuperAdmin && (
-              <>
-                <Link to="/sites" className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
-                  Sites
-                </Link>
-                <Link to="/comptes" className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
-                  Comptes
-                </Link>
-              </>
+              <Link to="/sites" className={lienClass} activeProps={{ className: "text-foreground font-medium" }}>
+                Sites et accès
+              </Link>
             )}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
