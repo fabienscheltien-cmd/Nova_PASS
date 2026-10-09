@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { listerSites, monProfil } from "@/lib/visites.functions";
 import { SiteBrand, SiteQr } from "@/components/site-brand";
+import { useSiteAnalyse } from "@/lib/site-analyse";
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
@@ -46,9 +47,8 @@ function Affiche() {
   useEffect(() => setOrigine(window.location.origin), []);
 
   // Une hôtesse n'imprime que l'affiche de son propre site.
-  const siteId = profil?.estSuperAdmin
-    ? (siteParam ?? profil?.siteId ?? sites?.[0]?.id)
-    : profil?.siteId;
+  const siteAnalyse = useSiteAnalyse();
+  const siteId = profil?.estSuperAdmin ? (siteParam ?? (siteAnalyse || undefined)) : profil?.siteId;
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
   const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
 

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerSites, listerVisites, monProfil } from "@/lib/visites.functions";
+import { useSiteDeTravail } from "@/lib/site-analyse";
 
 export const Route = createFileRoute("/_authenticated/statistiques")({
   head: () => ({
@@ -57,7 +58,6 @@ function Statistiques() {
   const chargerVisites = useServerFn(listerVisites);
   const chargerSites = useServerFn(listerSites);
   const chargerProfil = useServerFn(monProfil);
-  const [siteId, setSiteId] = useState("");
   const [periode, setPeriode] = useState<Periode>("jour");
   const { data: profil } = useQuery({ queryKey: ["monProfil"], queryFn: () => chargerProfil() });
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
@@ -69,7 +69,8 @@ function Statistiques() {
   }, []);
   // Statistiques toujours par site : la super admin choisit le site (le premier
   // par défaut), un compte de site voit uniquement le sien.
-  const siteChoisi = profil?.estSuperAdmin ? siteId || sites?.[0]?.id : undefined;
+  const siteTravail = useSiteDeTravail(profil);
+  const siteChoisi = profil?.estSuperAdmin ? siteTravail : undefined;
   const nomSite = profil?.estSuperAdmin
     ? (sites ?? []).find((s) => s.id === siteChoisi)?.nom
     : profil?.siteNom;
@@ -114,26 +115,6 @@ function Statistiques() {
             Nombre de visiteurs enregistrés{nomSite ? ` · ${nomSite}` : ""}.
           </p>
         </div>
-        {profil?.estSuperAdmin && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground" htmlFor="stats-site">
-              Site
-            </label>
-            <select
-              id="stats-site"
-              value={siteChoisi ?? ""}
-              onChange={(e) => setSiteId(e.target.value)}
-              className="mt-1 min-w-56 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
-            >
-              {(sites ?? []).length === 0 && <option value="">Aucun site</option>}
-              {(sites ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nom}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">

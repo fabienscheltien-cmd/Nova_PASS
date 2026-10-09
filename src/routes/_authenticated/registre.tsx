@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
+import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   AjoutVisiteur,
   BoutonsExport,
@@ -73,8 +74,8 @@ function Registre() {
         ))}
       </nav>
       <div className="mt-6">
-        {onglet === "objets" && <RegistreObjets sites={sites} profil={profil} />}
-        {onglet === "courrier" && <RegistreDepots sites={sites} profil={profil} />}
+        {onglet === "objets" && <RegistreObjets profil={profil} />}
+        {onglet === "courrier" && <RegistreDepots profil={profil} />}
         {onglet === "visiteurs" && <Visiteurs />}
       </div>
     </div>
@@ -119,15 +120,15 @@ function Visiteurs() {
   const [date, setDate] = useState("");
   const [heure, setHeure] = useState("");
   const [recherche, setRecherche] = useState("");
-  const [site, setSite] = useState("");
   const [tri, setTri] = useState<ColTri>("arrivee_at");
   const [sens, setSens] = useState<SensTri>("desc");
 
   const { data: profil } = useQuery({ queryKey: ["monProfil"], queryFn: () => chargerProfil() });
+  const siteTravail = useSiteDeTravail(profil);
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["visites", date, heure, recherche, site],
+    queryKey: ["visites", date, heure, recherche, siteTravail],
     queryFn: () =>
       charger({
         data: {
@@ -135,7 +136,7 @@ function Visiteurs() {
           au: date || undefined,
           heure: date && heure ? heure : undefined,
           recherche,
-          siteId: site || undefined,
+          siteId: siteTravail,
         },
       }),
     refetchInterval: 30000,
@@ -216,26 +217,6 @@ function Visiteurs() {
       <AjoutVisiteur profil={profil} />
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
-        {profil?.estSuperAdmin && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground" htmlFor="site">
-              Site
-            </label>
-            <select
-              id="site"
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-            >
-              <option value="">Tous les sites</option>
-              {(sites ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nom}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div>
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="date">
             Date
@@ -285,7 +266,6 @@ function Visiteurs() {
             setDate("");
             setHeure("");
             setRecherche("");
-            setSite("");
           }}
           className="rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-accent"
         >
