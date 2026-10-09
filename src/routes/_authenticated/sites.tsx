@@ -9,7 +9,7 @@ import {
   supprimerSite,
   listerComptes,
   inviterCompte,
-  genererMotDePasse,
+  modifierCompte,
   envoyerLienMotDePasse,
   supprimerCompte,
 } from "@/lib/admin.functions";
@@ -34,6 +34,18 @@ export const Route = createFileRoute("/_authenticated/sites")({
   component: Sites,
 });
 
+/** Mot de passe facile à dicter : 3 syllabes, un tiret et 4 chiffres (ex. « Bamiko-4821 »). */
+function suggererMotDePasse() {
+  const consonnes = "bcdfghjklmnprstvz";
+  const voyelles = "aeiou";
+  const n = new Uint32Array(10);
+  crypto.getRandomValues(n);
+  let mot = "";
+  for (let i = 0; i < 3; i++) mot += consonnes[n[i * 2]! % consonnes.length]! + voyelles[n[i * 2 + 1]! % voyelles.length]!;
+  const chiffres = String(1000 + (n[6]! % 9000));
+  return `${mot[0]!.toUpperCase()}${mot.slice(1)}-${chiffres}`;
+}
+
 const inputClass =
   "mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40";
 
@@ -55,7 +67,7 @@ function Sites() {
   const supprimer = useServerFn(supprimerSite);
   const chargerComptes = useServerFn(listerComptes);
   const inviter = useServerFn(inviterCompte);
-  const generer = useServerFn(genererMotDePasse);
+  const definirMdp = useServerFn(modifierCompte);
   const envoyerLien = useServerFn(envoyerLienMotDePasse);
   const supprimerAcces = useServerFn(supprimerCompte);
 
@@ -68,6 +80,8 @@ function Sites() {
   const [occupe, setOccupe] = useState<string | null>(null);
   const [mdpAffiche, setMdpAffiche] = useState<{ email: string; motDePasse: string } | null>(null);
   const [copie, setCopie] = useState(false);
+  const [saisieMdp, setSaisieMdp] = useState<{ userId: string; email: string; motDePasse: string } | null>(null);
+  const [voirMdp, setVoirMdp] = useState(true);
 
   const [form, setForm] = useState(vide);
   const [origine, setOrigine] = useState("");
@@ -128,15 +142,18 @@ function Sites() {
     }
   }
 
-  async function onGenerer(userId: string, mail: string) {
-    if (!confirm(`Générer un nouveau mot de passe pour ${mail} ? L'ancien ne fonctionnera plus.`)) return;
-    setOccupe(userId);
+  async function onDefinirMdp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!saisieMdp) return;
+    setErreur(null);
+    setOccupe(saisieMdp.userId);
     try {
-      const r = await generer({ data: { userId } });
+      await definirMdp({ data: { userId: saisieMdp.userId, motDePasse: saisieMdp.motDePasse } });
       setCopie(false);
-      setMdpAffiche({ email: mail, motDePasse: r.motDePasse });
+      setMdpAffiche({ email: saisieMdp.email, motDePasse: saisieMdp.motDePasse });
+      setSaisieMdp(null);
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : "Génération impossible.");
+      setErreur(err instanceof Error ? err.message : "Le mot de passe n'a pas pu être enregistré.");
     } finally {
       setOccupe(null);
     }
@@ -173,7 +190,9 @@ function Sites() {
       {mdpAffiche && (
         <div role="dialog" aria-label="Nouveau mot de passe" className="mt-4 rounded-xl border border-primary/40 bg-card p-5">
           <p className="text-sm text-foreground">
-            Nouveau mot de passe pour <strong>{mdpAffiche.email}</strong> — affiché une seule fois :
+            Mot de passe enregistré pour <strong>{mdpAffiche.email}</strong>. Notez-le ou transmettez-le
+            maintenant : pour des raisons de sécurité, il n'est pas conservé en clair et ne pourra plus être
+            affiché.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code data-testid="mdp-genere" className="rounded-md bg-muted px-3 py-2 font-mono text-base text-foreground">{mdpAffiche.motDePasse}</code>
@@ -183,6 +202,53 @@ function Sites() {
             <button onClick={() => setMdpAffiche(null)} className={petitBouton}>Fermer</button>
           </div>
         </div>
+      )}
+
+      {saisieMdp && (
+        <form
+          onSubmit={onDefinirMdp}
+          role="dialog"
+          aria-label="Définir le mot de passe"
+          className="mt-4 rounded-xl border border-primary/40 bg-card p-5"
+        >
+          <p className="text-sm text-foreground">
+            Définir le mot de passe de <strong>{saisieMdp.email}</strong> (l'ancien ne fonctionnera plus) :
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              aria-label="Nouveau mot de passe"
+              type={voirMdp ? "text" : "password"}
+              required
+              minLength={8}
+              maxLength={72}
+              value={saisieMdp.motDePasse}
+              onChange={(e) => setSaisieMdp({ ...saisieMdp, motDePasse: e.target.value })}
+              className="w-64 rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm text-foreground"
+              autoComplete="new-password"
+            />
+            <button type="button" onClick={() => setVoirMdp((v) => !v)} className={petitBouton} aria-pressed={voirMdp}>
+              {voirMdp ? "🙈 Masquer" : "👁 Afficher"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSaisieMdp({ ...saisieMdp, motDePasse: suggererMotDePasse() })}
+              className={petitBouton}
+            >
+              Suggérer
+            </button>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              disabled={occupe === saisieMdp.userId}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              Enregistrer le mot de passe
+            </button>
+            <button type="button" onClick={() => setSaisieMdp(null)} className={petitBouton}>
+              Annuler
+            </button>
+          </div>
+        </form>
       )}
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
@@ -294,11 +360,23 @@ function Sites() {
                       <div className="flex flex-col gap-1">
                         <span className="text-foreground">{c.email}</span>
                         <div className="flex flex-wrap gap-1">
-                          <button disabled={occupe === c.userId} onClick={() => onGenerer(c.userId, c.email)} className={petitBouton}>
-                            Générer un mot de passe
+                          <button
+                            disabled={occupe === c.userId}
+                            onClick={() => onLien(c.userId, c.email)}
+                            className={petitBouton}
+                            title="L'accueil reçoit un e-mail pour choisir lui-même son mot de passe"
+                          >
+                            Envoyer un lien
                           </button>
-                          <button disabled={occupe === c.userId} onClick={() => onLien(c.userId, c.email)} className={petitBouton}>
-                            Envoyer le lien
+                          <button
+                            disabled={occupe === c.userId}
+                            onClick={() => {
+                              setVoirMdp(true);
+                              setSaisieMdp({ userId: c.userId, email: c.email, motDePasse: suggererMotDePasse() });
+                            }}
+                            className={petitBouton}
+                          >
+                            Définir le mot de passe
                           </button>
                         </div>
                       </div>

@@ -78,7 +78,8 @@ function Checkin() {
     }
     setEtat("envoi");
     try {
-      await envoyer({ data: { ...form, siteId } });
+      // L'heure saisie est locale au navigateur : on la convertit en instant ISO avec fuseau.
+      await envoyer({ data: { ...form, arriveeAt: new Date(form.arriveeAt).toISOString(), siteId } });
       setEtat("ok");
     } catch {
       setErreur("L'enregistrement n'a pas pu être effectué. Merci de prévenir l'accueil.");

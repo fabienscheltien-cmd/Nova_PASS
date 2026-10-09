@@ -1,0 +1,21 @@
+# /etc/systemd/system/nova-pass.service
+[Unit]
+Description=Nova Pass (registre visiteurs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=novapass
+WorkingDirectory=/opt/nova-pass
+EnvironmentFile=/opt/nova-pass/.env.production
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
