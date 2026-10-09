@@ -1,0 +1,256 @@
+import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { heureParisVersUtc } from "@/lib/fuseau";
+import { z } from "zod";
+
+/*
+ * Registres de l'accueil : ajout manuel de visiteurs, objets trouvés,
+ * courrier / colis / clés. Ajout et lecture uniquement — aucune fonction de
+ * modification ou de suppression n'existe, et la base les refuse (RLS + droits).
+ */
+
+type Contexte = { supabase: SupabaseClient<Database>; userId: string };
+
+const champ = (max: number) => z.string().trim().min(1).max(max);
+const texteLibre = (max: number) => z.string().trim().max(max).default("");
+
+// Saisie manuelle : jusqu'à 31 jours dans le passé, 15 min dans le futur.
+const instantSaisi = z
+  .string()
+  .datetime({ offset: true })
+  .refine((v) => {
+    const ecart = new Date(v).getTime() - Date.now();
+    return ecart <= 15 * 60 * 1000 && ecart >= -31 * 24 * 60 * 60 * 1000;
+  }, "Date hors plage (31 jours maximum dans le passé)");
+
+const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const filtresBase = z.object({
+  du: jour.optional(),
+  au: jour.optional(),
+  recherche: z.string().max(120).optional(),
+  siteId: z.string().uuid().optional(),
+});
+
+export const CATEGORIES_DEPOT = ["courrier", "colis", "cles", "autre"] as const;
+export type CategorieDepot = (typeof CATEGORIES_DEPOT)[number];
+
+/**
+ * Site sur lequel écrire : celui du compte pour un accueil (la valeur envoyée
+ * par le navigateur est ignorée), celui choisi pour la super admin.
+ */
+async function siteCible(context: Contexte, siteDemande: string | undefined) {
+  const [{ data: profil }, { data: roles }] = await Promise.all([
+    context.supabase.from("profils").select("site_id").eq("user_id", context.userId).maybeSingle(),
+    context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
+  ]);
+  const estSuperAdmin = (roles ?? []).some((r) => r.role === "super_admin");
+  const siteId = estSuperAdmin ? siteDemande : profil?.site_id;
+  if (!siteId) {
+    throw new Error(
+      estSuperAdmin ? "Choisissez le site concerné." : "Aucun site n'est rattaché à ce compte.",
+    );
+  }
+  return siteId;
+}
+
+type Requete = {
+  gte(colonne: string, valeur: string): Requete;
+  lte(colonne: string, valeur: string): Requete;
+  eq(colonne: string, valeur: string): Requete;
+  or(filtre: string): Requete;
+};
+
+/** Filtres communs : site, dates (heure de Paris) et recherche plein texte. */
+function filtrer<Q>(
+  requete: Q,
+  colonneDate: string,
+  colonnesRecherche: string[],
+  f: z.infer<typeof filtresBase>,
+): Q {
+  let q = requete as unknown as Requete;
+  if (f.siteId) q = q.eq("site_id", f.siteId);
+  if (f.du) q = q.gte(colonneDate, heureParisVersUtc(f.du, "00:00:00").toISOString());
+  if (f.au) q = q.lte(colonneDate, heureParisVersUtc(f.au, "23:59:59.999").toISOString());
+  const terme = f.recherche?.trim();
+  if (terme) {
+    const like = `%${terme.replace(/[%,()]/g, "")}%`;
+    q = q.or(colonnesRecherche.map((c) => `${c}.ilike.${like}`).join(","));
+  }
+  return q as unknown as Q;
+}
+
+/** Supabase plafonne chaque réponse (1000 lignes par défaut) : on pagine. */
+async function toutesLesPages<T>(
+  page: (
+    debut: number,
+    fin: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+) {
+  const TAILLE = 1000;
+  const lignes: T[] = [];
+  for (let debut = 0; debut < 50_000; debut += TAILLE) {
+    const { data, error } = await page(debut, debut + TAILLE - 1);
+    if (error) throw new Error(error.message);
+    lignes.push(...(data ?? []));
+    if (!data || data.length < TAILLE) break;
+  }
+  return lignes;
+}
+
+// ---------- Visiteurs (saisie manuelle) ----------
+
+export const ajouterVisiteManuelle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        nom: champ(80),
+        prenom: champ(80),
+        entreprise: champ(120),
+        personneVisitee: champ(120),
+        entrepriseVisitee: champ(120),
+        arriveeAt: instantSaisi,
+        siteId: z.string().uuid().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const siteId = await siteCible(context, data.siteId);
+    const { error } = await context.supabase.from("visites").insert({
+      nom: data.nom,
+      prenom: data.prenom,
+      entreprise: data.entreprise,
+      personne_visitee: data.personneVisitee,
+      entreprise_visitee: data.entrepriseVisitee,
+      arrivee_at: new Date(data.arriveeAt).toISOString(),
+      site_id: siteId,
+      saisie_manuelle: true,
+      cree_par: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Objets trouvés ----------
+
+export type ObjetTrouve = {
+  id: string;
+  trouve_at: string;
+  objet: string;
+  emplacement: string;
+  observation: string;
+  site_id: string | null;
+  sites: { nom: string } | null;
+};
+
+export const listerObjetsTrouves = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => filtresBase.parse(data ?? {}))
+  .handler(async ({ data, context }) => {
+    const lignes = await toutesLesPages((debut, fin) =>
+      filtrer(
+        context.supabase
+          .from("objets_trouves")
+          .select("id, trouve_at, objet, emplacement, observation, site_id, sites(nom)")
+          .order("trouve_at", { ascending: false })
+          .order("id")
+          .range(debut, fin),
+        "trouve_at",
+        ["objet", "emplacement", "observation"],
+        data,
+      ),
+    );
+    return lignes as unknown as ObjetTrouve[];
+  });
+
+export const ajouterObjetTrouve = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        objet: champ(160),
+        emplacement: texteLibre(160),
+        observation: texteLibre(2000),
+        trouveAt: instantSaisi,
+        siteId: z.string().uuid().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const siteId = await siteCible(context, data.siteId);
+    const { error } = await context.supabase.from("objets_trouves").insert({
+      objet: data.objet,
+      emplacement: data.emplacement,
+      observation: data.observation,
+      trouve_at: new Date(data.trouveAt).toISOString(),
+      site_id: siteId,
+      cree_par: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Courrier, colis, clés, autre ----------
+
+export type Depot = {
+  id: string;
+  categorie: CategorieDepot;
+  recu_at: string;
+  destinataire: string;
+  expediteur: string;
+  description: string;
+  site_id: string | null;
+  sites: { nom: string } | null;
+};
+
+export const listerDepots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    filtresBase.extend({ categorie: z.enum(CATEGORIES_DEPOT).optional() }).parse(data ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const lignes = await toutesLesPages((debut, fin) => {
+      let q = context.supabase
+        .from("courriers_colis")
+        .select(
+          "id, categorie, recu_at, destinataire, expediteur, description, site_id, sites(nom)",
+        )
+        .order("recu_at", { ascending: false })
+        .order("id")
+        .range(debut, fin);
+      if (data.categorie) q = q.eq("categorie", data.categorie);
+      return filtrer(q, "recu_at", ["destinataire", "expediteur", "description"], data);
+    });
+    return lignes as unknown as Depot[];
+  });
+
+export const ajouterDepot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        categorie: z.enum(CATEGORIES_DEPOT),
+        destinataire: champ(160),
+        expediteur: texteLibre(160),
+        description: texteLibre(2000),
+        recuAt: instantSaisi,
+        siteId: z.string().uuid().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const siteId = await siteCible(context, data.siteId);
+    const { error } = await context.supabase.from("courriers_colis").insert({
+      categorie: data.categorie,
+      destinataire: data.destinataire,
+      expediteur: data.expediteur,
+      description: data.description,
+      recu_at: new Date(data.recuAt).toISOString(),
+      site_id: siteId,
+      cree_par: context.userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

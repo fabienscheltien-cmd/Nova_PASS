@@ -3,9 +3,28 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
-import { neutraliserFormule } from "@/lib/export";
+import {
+  AjoutVisiteur,
+  BoutonsExport,
+  exporter,
+  RegistreDepots,
+  RegistreObjets,
+} from "@/components/registres-accueil";
+
+const ONGLETS = {
+  visiteurs: "Visiteurs",
+  objets: "Objets trouvés",
+  courrier: "Courrier, colis & clés",
+} as const;
+type Onglet = keyof typeof ONGLETS;
 
 export const Route = createFileRoute("/_authenticated/registre")({
+  validateSearch: (search: Record<string, unknown>): { onglet?: Onglet | undefined } => ({
+    onglet:
+      typeof search["onglet"] === "string" && search["onglet"] in ONGLETS
+        ? (search["onglet"] as Onglet)
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Registre des visiteurs — Nova Pass" },
@@ -22,6 +41,42 @@ export const Route = createFileRoute("/_authenticated/registre")({
   component: Registre,
 });
 
+function Registre() {
+  const { onglet = "visiteurs" } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const chargerSites = useServerFn(listerSites);
+  const chargerProfil = useServerFn(monProfil);
+  const { data: profil } = useQuery({ queryKey: ["monProfil"], queryFn: () => chargerProfil() });
+  const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Registre</h1>
+      <nav className="mt-4 flex flex-wrap gap-1 border-b border-border" aria-label="Rubriques du registre">
+        {(Object.keys(ONGLETS) as Onglet[]).map((o) => (
+          <button
+            key={o}
+            onClick={() => navigate({ search: { onglet: o === "visiteurs" ? undefined : o } })}
+            aria-current={o === onglet ? "page" : undefined}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              o === onglet
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {ONGLETS[o]}
+          </button>
+        ))}
+      </nav>
+      <div className="mt-6">
+        {onglet === "objets" && <RegistreObjets sites={sites} profil={profil} />}
+        {onglet === "courrier" && <RegistreDepots sites={sites} profil={profil} />}
+        {onglet === "visiteurs" && <Visiteurs />}
+      </div>
+    </div>
+  );
+}
+
 type Visite = {
   id: string;
   nom: string;
@@ -31,6 +86,7 @@ type Visite = {
   entreprise_visitee: string;
   arrivee_at: string;
   site_id: string | null;
+  saisie_manuelle?: boolean;
   sites: { nom: string; adresse: string; code_postal: string; ville: string } | null;
 };
 
@@ -56,7 +112,7 @@ type ColTri =
   | "site";
 type SensTri = "asc" | "desc";
 
-function Registre() {
+function Visiteurs() {
   const charger = useServerFn(listerVisites);
   const chargerSites = useServerFn(listerSites);
   const chargerProfil = useServerFn(monProfil);
@@ -144,62 +200,20 @@ function Registre() {
     }));
   }
 
-  const nomFichier = () => `registre-visiteurs-${new Date().toISOString().slice(0, 10)}`;
-
-  async function exporterExcel() {
-    const XLSX = await import("xlsx");
-    const feuille = XLSX.utils.json_to_sheet(lignesExport());
-    const classeur = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(classeur, feuille, "Visites");
-    XLSX.writeFile(classeur, `${nomFichier()}.xlsx`);
-  }
-
-  async function exporterCsv() {
-    const XLSX = await import("xlsx");
-    const lignes = lignesExport().map((l) =>
-      Object.fromEntries(Object.entries(l).map(([k, v]) => [k, neutraliserFormule(v)])),
-    );
-    const feuille = XLSX.utils.json_to_sheet(lignes);
-    const csv = XLSX.utils.sheet_to_csv(feuille);
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${nomFichier()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Registre des visiteurs
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {visites.length} visite{visites.length > 1 ? "s" : ""} affichée
-            {visites.length > 1 ? "s" : ""}
-            {!profil?.estSuperAdmin && profil?.siteNom ? ` · ${profil.siteNom}` : ""}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={exporterExcel}
-            disabled={visites.length === 0}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
-            Export Excel
-          </button>
-          <button
-            onClick={exporterCsv}
-            disabled={visites.length === 0}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
-          >
-            Export CSV
-          </button>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {visites.length} visite{visites.length > 1 ? "s" : ""} affichée
+          {visites.length > 1 ? "s" : ""}
+        </p>
+        <BoutonsExport
+          desactive={visites.length === 0}
+          onExport={(f) => exporter(lignesExport(), "registre-visiteurs", f)}
+        />
       </div>
+
+      <AjoutVisiteur sites={sites} profil={profil} />
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
         {profil?.estSuperAdmin && (
@@ -311,6 +325,11 @@ function Registre() {
                   </td>
                   <td className="px-4 py-3 font-medium text-foreground">
                     {v.prenom} {v.nom}
+                    {v.saisie_manuelle && (
+                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal uppercase text-muted-foreground">
+                        saisie manuelle
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{v.entreprise}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.personne_visitee}</td>
@@ -327,6 +346,6 @@ function Registre() {
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
 }

@@ -78,7 +78,6 @@ function Affiche() {
           <h1 className="mt-5 text-5xl font-semibold leading-tight text-hero-foreground">
             Bienvenue chez {site?.nom ?? "Nova Serenity"}
           </h1>
-          {adresse && <p className="mt-3 text-base text-hero-muted">{adresse}</p>}
 
           <div className="mt-[12mm] rounded-2xl border border-hero-line bg-qr-surface p-6 shadow-2xl">
             {url ? <SiteQr value={url} logoUrl={site?.logo_url} size={330} /> : <div className="h-[330px] w-[330px]" />}

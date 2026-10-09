@@ -152,7 +152,7 @@ export const listerVisites = createServerFn({ method: "POST" })
       let requete = context.supabase
         .from("visites")
         .select(
-          "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, sites(nom, adresse, code_postal, ville)",
+          "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, saisie_manuelle, sites(nom, adresse, code_postal, ville)",
         )
         .order("arrivee_at", { ascending: false })
         .order("id")

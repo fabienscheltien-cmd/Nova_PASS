@@ -142,8 +142,10 @@ export const modifierCompte = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
     if (data.motDePasse) {
+      // Adresse choisie par la super admin : confirmée pour que le mot de passe fonctionne tout de suite.
       const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
         password: data.motDePasse,
+        email_confirm: true,
       });
       if (error) throw new Error(error.message);
     }
