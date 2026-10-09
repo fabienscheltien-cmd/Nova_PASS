@@ -252,6 +252,8 @@ function Sites() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input
               aria-label="Nouveau mot de passe"
+              autoFocus
+              placeholder="Saisissez le mot de passe (8 caractères min.)"
               type={voirMdp ? "text" : "password"}
               required
               minLength={8}
@@ -452,7 +454,7 @@ function Sites() {
                             disabled={occupe === c.userId}
                             onClick={() => {
                               setVoirMdp(true);
-                              setSaisieMdp({ userId: c.userId, email: c.email, motDePasse: suggererMotDePasse() });
+                              setSaisieMdp({ userId: c.userId, email: c.email, motDePasse: "" });
                             }}
                             className={petitBouton}
                           >
