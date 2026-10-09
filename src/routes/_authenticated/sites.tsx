@@ -167,8 +167,23 @@ function Sites() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sites</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Chaque site possède son propre QR code et son adresse e-mail d'accueil.
+        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. L'adresse saisie reçoit un e-mail pour choisir son mot de passe.
       </p>
+      {message && <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{message}</p>}
+      {mdpAffiche && (
+        <div role="dialog" aria-label="Nouveau mot de passe" className="mt-4 rounded-xl border border-primary/40 bg-card p-5">
+          <p className="text-sm text-foreground">
+            Nouveau mot de passe pour <strong>{mdpAffiche.email}</strong> — affiché une seule fois :
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <code data-testid="mdp-genere" className="rounded-md bg-muted px-3 py-2 font-mono text-base text-foreground">{mdpAffiche.motDePasse}</code>
+            <button onClick={() => navigator.clipboard.writeText(mdpAffiche.motDePasse).then(() => setCopie(true))} className={petitBouton}>
+              {copie ? "Copié ✓" : "Copier"}
+            </button>
+            <button onClick={() => setMdpAffiche(null)} className={petitBouton}>Fermer</button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <div>
@@ -271,7 +286,25 @@ function Sites() {
                 <td className="px-4 py-3 text-muted-foreground">
                   {[s.adresse, s.code_postal, s.ville].filter(Boolean).join(" ")}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{s.email_accueil ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {(() => {
+                    const c = compteDuSite(s.id);
+                    if (!c) return <span>{s.email_accueil ? `${s.email_accueil} (accès non créé)` : "—"}</span>;
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-foreground">{c.email}</span>
+                        <div className="flex flex-wrap gap-1">
+                          <button disabled={occupe === c.userId} onClick={() => onGenerer(c.userId, c.email)} className={petitBouton}>
+                            Générer un mot de passe
+                          </button>
+                          <button disabled={occupe === c.userId} onClick={() => onLien(c.userId, c.email)} className={petitBouton}>
+                            Envoyer le lien
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td className="px-4 py-3">
                   {origine && (
                     <div className="flex items-center gap-3">
