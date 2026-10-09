@@ -14,7 +14,10 @@ export const Route = createFileRoute("/_authenticated/affiche")({
   head: () => ({
     meta: [
       { title: "Affiche d'accueil — Nova Pass" },
-      { name: "description", content: "Affiche A4 portrait du QR code d'accueil, prête à imprimer en PDF." },
+      {
+        name: "description",
+        content: "Affiche A4 portrait du QR code d'accueil, prête à imprimer en PDF.",
+      },
       { property: "og:title", content: "Affiche d'accueil — Nova Pass" },
       { property: "og:description", content: "Affiche imprimable du QR code de votre site." },
       { property: "og:type", content: "website" },
@@ -43,7 +46,9 @@ function Affiche() {
   useEffect(() => setOrigine(window.location.origin), []);
 
   // Une hôtesse n'imprime que l'affiche de son propre site.
-  const siteId = profil?.estSuperAdmin ? (siteParam ?? profil?.siteId ?? sites?.[0]?.id) : profil?.siteId;
+  const siteId = profil?.estSuperAdmin
+    ? (siteParam ?? profil?.siteId ?? sites?.[0]?.id)
+    : profil?.siteId;
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
   const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
 
@@ -64,23 +69,36 @@ function Affiche() {
       </div>
 
       <div className="affiche-a4 relative isolate mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-foreground shadow-2xl">
-        <img src={novaReception.url} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover object-[60%_center]" />
+        <img
+          src={novaReception.url}
+          alt=""
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[60%_center]"
+        />
         <div className="absolute inset-0 -z-10 bg-hero-overlay" aria-hidden="true" />
 
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-hero-line px-[14mm] pb-[7mm] pt-[12mm]">
-          <img src={novaSerenityLogo.url} alt="Nova Serenity" className="h-auto w-24" />
-          <SiteBrand logoUrl={site?.logo_url} nom={site?.nom} />
-          <span />
+        <header className="flex flex-col items-center gap-[6mm] border-b border-hero-line px-[14mm] pb-[8mm] pt-[10mm]">
+          <img
+            src={novaSerenityLogo.url}
+            alt="Nova Serenity"
+            className="h-auto w-20 self-start opacity-90"
+          />
+          <SiteBrand logoUrl={site?.logo_url} nom={site?.nom} format="affiche" />
         </header>
 
         <section className="flex flex-1 flex-col items-center px-[14mm] pt-[12mm] text-center">
-          <p className="text-2xl font-bold uppercase tracking-widest text-pass-pastel">Accueil visiteurs</p>
+          <p className="text-2xl font-bold uppercase tracking-widest text-pass-pastel">
+            Accueil visiteurs
+          </p>
           <h1 className="mt-5 text-5xl font-semibold leading-tight text-hero-foreground">
             Bienvenue chez {site?.nom ?? "Nova Serenity"}
           </h1>
 
           <div className="mt-[12mm] rounded-2xl border border-hero-line bg-qr-surface p-6 shadow-2xl">
-            {url ? <SiteQr value={url} logoUrl={site?.logo_url} size={330} /> : <div className="h-[330px] w-[330px]" />}
+            {url ? (
+              <SiteQr value={url} logoUrl={site?.logo_url} size={330} />
+            ) : (
+              <div className="h-[330px] w-[330px]" />
+            )}
           </div>
 
           <ol className="mt-[12mm] grid w-full grid-cols-3 gap-4 text-left">
