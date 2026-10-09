@@ -46,7 +46,6 @@ function Affiche() {
   const siteId = profil?.estSuperAdmin ? (siteParam ?? profil?.siteId ?? sites?.[0]?.id) : profil?.siteId;
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
   const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
-  const adresse = site ? [site.adresse, site.code_postal, site.ville].filter(Boolean).join(" ") : "";
 
   return (
     <div className="bg-muted/40 py-6 print:bg-transparent print:py-0">
