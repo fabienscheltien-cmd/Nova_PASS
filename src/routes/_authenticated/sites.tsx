@@ -57,6 +57,7 @@ const vide = {
   ville: "",
   pays: "France",
   emailAccueil: "",
+  motDePasse: "",
   logoUrl: null as string | null,
 };
 
@@ -125,14 +126,34 @@ function Sites() {
     e.preventDefault();
     setErreur(null);
     setMessage(null);
+    const { motDePasse, ...site } = form;
+    const mail = form.emailAccueil.trim().toLowerCase();
+    if (motDePasse && !mail) {
+      setErreur("Renseignez l'e-mail de l'accueil pour lui attribuer ce mot de passe.");
+      return;
+    }
+    if (motDePasse && motDePasse.length < 8) {
+      setErreur("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
     try {
-      const r = await enregistrer({ data: form });
-      const mail = form.emailAccueil.trim().toLowerCase();
+      const r = await enregistrer({ data: site });
       const actuel = compteDuSite(r.id);
+      const mdp = motDePasse ? { motDePasse } : {};
       if (mail && actuel?.email !== mail) {
         if (actuel) await supprimerAcces({ data: { userId: actuel.userId } });
-        await inviter({ data: { email: mail, siteId: r.id, origine: window.location.origin } });
-        setMessage(`Accès créé : ${mail} a reçu un e-mail pour choisir son mot de passe.`);
+        await inviter({ data: { email: mail, siteId: r.id, ...mdp } });
+        setMessage(
+          motDePasse
+            ? `Accès créé pour ${mail}.`
+            : `Accès créé pour ${mail}. Cliquez sur « Définir le mot de passe » ou « Envoyer un lien » sur la ligne du site.`,
+        );
+      } else if (actuel && motDePasse) {
+        await definirMdp({ data: { userId: actuel.userId, motDePasse } });
+      }
+      if (mail && motDePasse) {
+        setCopie(false);
+        setMdpAffiche({ email: mail, motDePasse });
       }
       setForm(vide);
       queryClient.invalidateQueries({ queryKey: ["sites"] });
@@ -154,6 +175,20 @@ function Sites() {
       setSaisieMdp(null);
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Le mot de passe n'a pas pu être enregistré.");
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  async function onCreerAcces(siteId: string, mail: string) {
+    setErreur(null);
+    setOccupe(siteId);
+    try {
+      await inviter({ data: { email: mail, siteId } });
+      setMessage(`Accès créé pour ${mail}. Définissez maintenant son mot de passe ou envoyez-lui un lien.`);
+      queryClient.invalidateQueries({ queryKey: ["comptes"] });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Création de l'accès impossible.");
     } finally {
       setOccupe(null);
     }
@@ -184,7 +219,7 @@ function Sites() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sites</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. L'adresse saisie reçoit un e-mail pour choisir son mot de passe.
+        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. Après l'ajout, définissez le mot de passe de l'accès ou envoyez-lui un lien.
       </p>
       {message && <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{message}</p>}
       {mdpAffiche && (
@@ -265,6 +300,36 @@ function Sites() {
             onChange={set("emailAccueil")}
             placeholder="accueil@nova-serenity.fr"
           />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="site-mdp">
+            Mot de passe de l'accès {form.id ? "(laisser vide pour ne pas le changer)" : "(optionnel, 8 caractères minimum)"}
+          </label>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <input
+              id="site-mdp"
+              className="w-64 rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40"
+              type={voirMdp ? "text" : "password"}
+              minLength={8}
+              maxLength={72}
+              value={form.motDePasse}
+              onChange={set("motDePasse")}
+              autoComplete="new-password"
+            />
+            <button type="button" onClick={() => setVoirMdp((v) => !v)} className={petitBouton} aria-pressed={voirMdp}>
+              {voirMdp ? "🙈 Masquer" : "👁 Afficher"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setVoirMdp(true);
+                setForm((f) => ({ ...f, motDePasse: suggererMotDePasse() }));
+              }}
+              className={petitBouton}
+            >
+              Suggérer
+            </button>
+          </div>
         </div>
         <div className="sm:col-span-2">
           <label className="text-xs font-medium text-muted-foreground">Adresse</label>
@@ -355,7 +420,22 @@ function Sites() {
                 <td className="px-4 py-3 text-muted-foreground">
                   {(() => {
                     const c = compteDuSite(s.id);
-                    if (!c) return <span>{s.email_accueil ? `${s.email_accueil} (accès non créé)` : "—"}</span>;
+                    if (!c) {
+                      if (!s.email_accueil) return <span>—</span>;
+                      const mail = s.email_accueil;
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <span>{mail} (accès non créé)</span>
+                          <button
+                            disabled={occupe === s.id}
+                            onClick={() => onCreerAcces(s.id, mail)}
+                            className={petitBouton}
+                          >
+                            Créer l'accès
+                          </button>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="flex flex-col gap-1">
                         <span className="text-foreground">{c.email}</span>
@@ -414,6 +494,7 @@ function Sites() {
                         ville: s.ville ?? "",
                         pays: s.pays ?? "France",
                         emailAccueil: s.email_accueil ?? "",
+                        motDePasse: "",
                         logoUrl: s.logo_url ?? null,
                       })
                     }

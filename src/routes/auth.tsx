@@ -47,7 +47,10 @@ function AuthPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: motDePasse,
+    });
     setChargement(false);
     if (error) {
       setErreur(
