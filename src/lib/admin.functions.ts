@@ -38,12 +38,14 @@ export const enregistrerSite = createServerFn({ method: "POST" })
       email_accueil: data.emailAccueil || null,
       ...(data.logoUrl !== undefined ? { logo_url: data.logoUrl } : {}),
     };
-    const requete = data.id
-      ? context.supabase.from("sites").update(ligne).eq("id", data.id)
-      : context.supabase.from("sites").insert(ligne);
-    const { error } = await requete;
+    if (data.id) {
+      const { error } = await context.supabase.from("sites").update(ligne).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true, id: data.id };
+    }
+    const { data: cree, error } = await context.supabase.from("sites").insert(ligne).select("id").single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, id: cree.id as string };
   });
 
 export const supprimerSite = createServerFn({ method: "POST" })
@@ -180,7 +182,11 @@ export const genererMotDePasse = createServerFn({ method: "POST" })
     await exigerSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const motDePasse = motDePasseAleatoire();
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: motDePasse });
+    // L'adresse a été choisie par la super admin : on la considère confirmée pour que le mot de passe fonctionne tout de suite.
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: motDePasse,
+      email_confirm: true,
+    });
     if (error) throw new Error(error.message);
     return { motDePasse };
   });
