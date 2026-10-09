@@ -15,7 +15,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckinRouteImport } from './routes/checkin'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAfficheRouteImport } from './routes/_authenticated/affiche'
-import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
 import { Route as AuthenticatedRegistreRouteImport } from './routes/_authenticated/registre'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 import { Route as AuthenticatedStatistiquesRouteImport } from './routes/_authenticated/statistiques'
@@ -49,11 +48,6 @@ const AuthenticatedAfficheRoute = AuthenticatedAfficheRouteImport.update({
   path: '/affiche',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedComptesRoute = AuthenticatedComptesRouteImport.update({
-  id: '/comptes',
-  path: '/comptes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedRegistreRoute = AuthenticatedRegistreRouteImport.update({
   id: '/registre',
   path: '/registre',
@@ -77,7 +71,6 @@ export interface FileRoutesByFullPath {
   '/checkin': typeof CheckinRoute
   '/reset-password': typeof ResetPasswordRoute
   '/affiche': typeof AuthenticatedAfficheRoute
-  '/comptes': typeof AuthenticatedComptesRoute
   '/registre': typeof AuthenticatedRegistreRoute
   '/sites': typeof AuthenticatedSitesRoute
   '/statistiques': typeof AuthenticatedStatistiquesRoute
@@ -88,7 +81,6 @@ export interface FileRoutesByTo {
   '/checkin': typeof CheckinRoute
   '/reset-password': typeof ResetPasswordRoute
   '/affiche': typeof AuthenticatedAfficheRoute
-  '/comptes': typeof AuthenticatedComptesRoute
   '/registre': typeof AuthenticatedRegistreRoute
   '/sites': typeof AuthenticatedSitesRoute
   '/statistiques': typeof AuthenticatedStatistiquesRoute
@@ -101,7 +93,6 @@ export interface FileRoutesById {
   '/checkin': typeof CheckinRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/affiche': typeof AuthenticatedAfficheRoute
-  '/_authenticated/comptes': typeof AuthenticatedComptesRoute
   '/_authenticated/registre': typeof AuthenticatedRegistreRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
   '/_authenticated/statistiques': typeof AuthenticatedStatistiquesRoute
@@ -114,7 +105,6 @@ export interface FileRouteTypes {
     | '/checkin'
     | '/reset-password'
     | '/affiche'
-    | '/comptes'
     | '/registre'
     | '/sites'
     | '/statistiques'
@@ -125,7 +115,6 @@ export interface FileRouteTypes {
     | '/checkin'
     | '/reset-password'
     | '/affiche'
-    | '/comptes'
     | '/registre'
     | '/sites'
     | '/statistiques'
@@ -137,7 +126,6 @@ export interface FileRouteTypes {
     | '/checkin'
     | '/reset-password'
     | '/_authenticated/affiche'
-    | '/_authenticated/comptes'
     | '/_authenticated/registre'
     | '/_authenticated/sites'
     | '/_authenticated/statistiques'
@@ -195,13 +183,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAfficheRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/comptes': {
-      id: '/_authenticated/comptes'
-      path: '/comptes'
-      fullPath: '/comptes'
-      preLoaderRoute: typeof AuthenticatedComptesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/registre': {
       id: '/_authenticated/registre'
       path: '/registre'
@@ -228,7 +209,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAfficheRoute: typeof AuthenticatedAfficheRoute
-  AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
   AuthenticatedRegistreRoute: typeof AuthenticatedRegistreRoute
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
   AuthenticatedStatistiquesRoute: typeof AuthenticatedStatistiquesRoute
@@ -236,7 +216,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAfficheRoute: AuthenticatedAfficheRoute,
-  AuthenticatedComptesRoute: AuthenticatedComptesRoute,
   AuthenticatedRegistreRoute: AuthenticatedRegistreRoute,
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,
   AuthenticatedStatistiquesRoute: AuthenticatedStatistiquesRoute,
