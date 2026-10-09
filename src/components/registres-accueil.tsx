@@ -10,6 +10,8 @@ import {
   CATEGORIES_DEPOT,
   listerDepots,
   listerObjetsTrouves,
+  marquerDepotRemis,
+  marquerObjetRestitue,
   type CategorieDepot,
 } from "@/lib/registres.functions";
 
@@ -25,6 +27,98 @@ export const LIBELLES_CATEGORIE: Record<CategorieDepot, string> = {
 };
 
 export type Site = { id: string; nom: string };
+
+export const LIBELLES_STATUT = {
+  en_attente: "En attente",
+  restitue: "Restitué",
+  recu: "Reçu",
+  remis: "Remis",
+} as const;
+type CleStatut = keyof typeof LIBELLES_STATUT;
+
+function ChoixStatut({
+  valeur,
+  onChange,
+  options,
+}: {
+  valeur: string;
+  onChange: (v: string) => void;
+  options: CleStatut[];
+}) {
+  return (
+    <div>
+      <label className={labelClass} htmlFor="f-statut">
+        Statut
+      </label>
+      <select
+        id="f-statut"
+        value={valeur}
+        onChange={(e) => onChange(e.target.value)}
+        className={`mt-1 ${inputClass}`}
+      >
+        <option value="">Tous</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {LIBELLES_STATUT[o]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** Badge de statut + action à sens unique (confirmée, sans retour arrière). */
+function Statut({
+  libelle,
+  final,
+  depuis,
+  action,
+}: {
+  libelle: string;
+  final: boolean;
+  depuis: string | null;
+  action?:
+    | { libelle: string; confirmation: string; executer: () => Promise<unknown>; cles: string[][] }
+    | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const [envoi, setEnvoi] = useState(false);
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span
+        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+          final ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+        }`}
+      >
+        {libelle}
+      </span>
+      {final && depuis && (
+        <span className="text-[11px] text-muted-foreground">{formatFr(depuis)}</span>
+      )}
+      {action && (
+        <button
+          disabled={envoi}
+          onClick={async () => {
+            if (!confirm(action.confirmation)) return;
+            setEnvoi(true);
+            try {
+              await action.executer();
+              for (const cle of action.cles) await queryClient.invalidateQueries({ queryKey: cle });
+            } catch (err) {
+              alert(err instanceof Error ? err.message : "Action impossible.");
+            } finally {
+              setEnvoi(false);
+            }
+          }}
+          className="rounded-md border border-border px-2 py-0.5 text-xs text-foreground hover:bg-accent disabled:opacity-50"
+        >
+          {action.libelle}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export type Profil = { estSuperAdmin: boolean; siteId: string | null } | undefined;
 
 /** Seul le compte d'un site ajoute des entrées ; la super admin consulte. */
@@ -69,13 +163,21 @@ export async function exporter(
   URL.revokeObjectURL(url);
 }
 
-export type Filtres = { du: string; au: string; recherche: string };
-export const filtresVides: Filtres = { du: "", au: "", recherche: "" };
+export type Filtres = {
+  du: string;
+  heureDu: string;
+  au: string;
+  heureAu: string;
+  recherche: string;
+};
+export const filtresVides: Filtres = { du: "", heureDu: "", au: "", heureAu: "", recherche: "" };
 
 export function versRequete(f: Filtres, siteId: string | undefined) {
   return {
     du: f.du || undefined,
+    heureDu: f.du && f.heureDu ? f.heureDu : undefined,
     au: f.au || undefined,
+    heureAu: f.au && f.heureAu ? f.heureAu : undefined,
     recherche: f.recherche,
     siteId,
   };
@@ -97,30 +199,22 @@ export function BarreFiltres({
   return (
     <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
       {children}
-      <div>
-        <label className={labelClass} htmlFor="f-du">
-          Du
-        </label>
-        <input
-          id="f-du"
-          type="date"
-          value={filtres.du}
-          onChange={maj("du")}
-          className={`mt-1 ${inputClass}`}
-        />
-      </div>
-      <div>
-        <label className={labelClass} htmlFor="f-au">
-          Au
-        </label>
-        <input
-          id="f-au"
-          type="date"
-          value={filtres.au}
-          onChange={maj("au")}
-          className={`mt-1 ${inputClass}`}
-        />
-      </div>
+      <DateHeure
+        id="f-du"
+        label="Du"
+        date={filtres.du}
+        heure={filtres.heureDu}
+        onDate={(v) => onChange({ ...filtres, du: v })}
+        onHeure={(v) => onChange({ ...filtres, heureDu: v })}
+      />
+      <DateHeure
+        id="f-au"
+        label="Au"
+        date={filtres.au}
+        heure={filtres.heureAu}
+        onDate={(v) => onChange({ ...filtres, au: v })}
+        onHeure={(v) => onChange({ ...filtres, heureAu: v })}
+      />
       <div className="min-w-[200px] flex-1">
         <label className={labelClass} htmlFor="f-q">
           Recherche
@@ -140,6 +234,49 @@ export function BarreFiltres({
         Réinitialiser
       </button>
     </div>
+  );
+}
+
+/** Champ « date + heure » d'un filtre ; l'heure est facultative (journée entière). */
+function DateHeure({
+  id,
+  label,
+  date,
+  heure,
+  onDate,
+  onHeure,
+}: {
+  id: string;
+  label: string;
+  date: string;
+  heure: string;
+  onDate: (v: string) => void;
+  onHeure: (v: string) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className={labelClass}>{label}</legend>
+      <div className="mt-1 flex gap-1">
+        <input
+          id={id}
+          aria-label={`${label} : date`}
+          type="date"
+          value={date}
+          onChange={(e) => onDate(e.target.value)}
+          className={inputClass}
+        />
+        <input
+          id={`${id}-heure`}
+          aria-label={`${label} : heure`}
+          type="time"
+          value={heure}
+          disabled={!date}
+          title={date ? "Facultatif" : "Choisissez d'abord une date"}
+          onChange={(e) => onHeure(e.target.value)}
+          className={`${inputClass} w-28 disabled:opacity-50`}
+        />
+      </div>
+    </fieldset>
   );
 }
 
@@ -355,11 +492,14 @@ export function AjoutVisiteur({ profil }: { profil: Profil }) {
 export function RegistreObjets({ profil }: { profil: Profil }) {
   const charger = useServerFn(listerObjetsTrouves);
   const ajouter = useServerFn(ajouterObjetTrouve);
+  const [statut, setStatut] = useState<"" | "en_attente" | "restitue">("");
+  const restituer = useServerFn(marquerObjetRestitue);
   const [filtres, setFiltres] = useState(filtresVides);
   const siteTravail = useSiteDeTravail(profil);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["objets", filtres, siteTravail],
-    queryFn: () => charger({ data: versRequete(filtres, siteTravail) }),
+    queryKey: ["objets", filtres, siteTravail, statut],
+    queryFn: () =>
+      charger({ data: { ...versRequete(filtres, siteTravail), ...(statut ? { statut } : {}) } }),
     refetchInterval: 30000,
   });
   const a = useAjout(
@@ -389,6 +529,8 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
                 Objet: o.objet,
                 Emplacement: o.emplacement,
                 Observation: o.observation,
+                Statut: LIBELLES_STATUT[o.statut],
+                "Date du statut": o.statut_at ? formatFr(o.statut_at) : "",
               })),
               "objets-trouves",
               f,
@@ -463,10 +605,16 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
         filtres={filtres}
         onChange={setFiltres}
         placeholder="Objet, emplacement, observation…"
-      />
+      >
+        <ChoixStatut
+          valeur={statut}
+          onChange={(v) => setStatut(v as typeof statut)}
+          options={["en_attente", "restitue"]}
+        />
+      </BarreFiltres>
 
       <Tableau
-        entetes={["Date et heure", "Site", "Objet", "Emplacement", "Observation"]}
+        entetes={["Date et heure", "Site", "Objet", "Emplacement", "Observation", "Statut"]}
         isLoading={isLoading}
         isError={isError}
         vide="Aucun objet trouvé pour ces critères."
@@ -478,6 +626,22 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
             o.objet,
             o.emplacement,
             o.observation,
+            <Statut
+              key="statut"
+              libelle={LIBELLES_STATUT[o.statut]}
+              final={o.statut === "restitue"}
+              depuis={o.statut_at}
+              action={
+                peutAjouter(profil) && o.statut === "en_attente"
+                  ? {
+                      libelle: "Marquer restitué",
+                      confirmation: `Confirmer la restitution de « ${o.objet} » ? Cette action est définitive.`,
+                      executer: () => restituer({ data: { id: o.id } }),
+                      cles: [["objets"]],
+                    }
+                  : undefined
+              }
+            />,
           ],
         }))}
       />
@@ -490,14 +654,20 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
 export function RegistreDepots({ profil }: { profil: Profil }) {
   const charger = useServerFn(listerDepots);
   const ajouter = useServerFn(ajouterDepot);
+  const [statut, setStatut] = useState<"" | "recu" | "remis">("");
+  const remettre = useServerFn(marquerDepotRemis);
   const [filtres, setFiltres] = useState(filtresVides);
   const siteTravail = useSiteDeTravail(profil);
   const [categorie, setCategorie] = useState<CategorieDepot | "">("");
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["depots", filtres, categorie, siteTravail],
+    queryKey: ["depots", filtres, categorie, siteTravail, statut],
     queryFn: () =>
       charger({
-        data: { ...versRequete(filtres, siteTravail), ...(categorie ? { categorie } : {}) },
+        data: {
+          ...versRequete(filtres, siteTravail),
+          ...(categorie ? { categorie } : {}),
+          ...(statut ? { statut } : {}),
+        },
       }),
     refetchInterval: 30000,
   });
@@ -530,6 +700,8 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
                 Destinataire: d.destinataire,
                 "Expéditeur / transporteur": d.expediteur,
                 Description: d.description,
+                Statut: LIBELLES_STATUT[d.statut],
+                "Date du statut": d.statut_at ? formatFr(d.statut_at) : "",
               })),
               "courrier-colis-cles",
               f,
@@ -637,6 +809,11 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
             ))}
           </select>
         </div>
+        <ChoixStatut
+          valeur={statut}
+          onChange={(v) => setStatut(v as typeof statut)}
+          options={["recu", "remis"]}
+        />
       </BarreFiltres>
 
       <Tableau
@@ -647,6 +824,7 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
           "Destinataire",
           "Expéditeur / transporteur",
           "Description",
+          "Statut",
         ]}
         isLoading={isLoading}
         isError={isError}
@@ -660,6 +838,22 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
             d.destinataire,
             d.expediteur,
             d.description,
+            <Statut
+              key="statut"
+              libelle={LIBELLES_STATUT[d.statut]}
+              final={d.statut === "remis"}
+              depuis={d.statut_at}
+              action={
+                peutAjouter(profil) && d.statut === "recu"
+                  ? {
+                      libelle: "Marquer remis",
+                      confirmation: `Confirmer la remise à ${d.destinataire} ? Cette action est définitive.`,
+                      executer: () => remettre({ data: { id: d.id } }),
+                      cles: [["depots"]],
+                    }
+                  : undefined
+              }
+            />,
           ],
         }))}
       />
@@ -675,7 +869,7 @@ function Tableau({
   vide,
 }: {
   entetes: string[];
-  lignes: { id: string; cellules: string[] }[];
+  lignes: { id: string; cellules: ReactNode[] }[];
   isLoading: boolean;
   isError: boolean;
   vide: string;

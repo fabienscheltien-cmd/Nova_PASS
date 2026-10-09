@@ -1,7 +1,7 @@
 // Lancer avec : npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { heureParisVersUtc } from "./fuseau.ts";
+import { bornesParis, heureParisVersUtc } from "./fuseau.ts";
 import { echapperHtml, neutraliserFormule } from "./export.ts";
 
 test("heure de Paris → UTC en été (UTC+2)", () => {
@@ -38,4 +38,22 @@ test("neutralisation des formules CSV", () => {
   }
   assert.equal(neutraliserFormule("Dupont"), "Dupont");
   assert.equal(neutraliserFormule("Jean-Pierre"), "Jean-Pierre");
+});
+
+test("filtre Du/Au avec heures (Paris)", () => {
+  assert.deepEqual(
+    bornesParis({ du: "2026-10-09", heureDu: "08:30", au: "2026-10-09", heureAu: "17:45" }),
+    {
+      debut: "2026-10-09T06:30:00.000Z",
+      fin: "2026-10-09T15:45:59.999Z",
+    },
+  );
+});
+
+test("filtre Du/Au sans heure = journées entières", () => {
+  assert.deepEqual(bornesParis({ du: "2026-12-01", au: "2026-12-02" }), {
+    debut: "2026-11-30T23:00:00.000Z",
+    fin: "2026-12-02T22:59:59.999Z",
+  });
+  assert.deepEqual(bornesParis({}), { debut: undefined, fin: undefined });
 });

@@ -156,7 +156,7 @@ function Checkin() {
               Enregistrement visiteur
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-hero-foreground sm:text-3xl">
-              Bienvenue chez Nova Serenity
+              Bienvenue chez {siteActif?.nom ?? "Nova Serenity"}
             </h1>
             <p className="mt-2 text-sm text-hero-muted">Tous les champs sont obligatoires.</p>
 

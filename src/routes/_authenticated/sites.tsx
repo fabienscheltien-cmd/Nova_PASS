@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Eye, EyeOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -41,7 +42,8 @@ function suggererMotDePasse() {
   const n = new Uint32Array(10);
   crypto.getRandomValues(n);
   let mot = "";
-  for (let i = 0; i < 3; i++) mot += consonnes[n[i * 2]! % consonnes.length]! + voyelles[n[i * 2 + 1]! % voyelles.length]!;
+  for (let i = 0; i < 3; i++)
+    mot += consonnes[n[i * 2]! % consonnes.length]! + voyelles[n[i * 2 + 1]! % voyelles.length]!;
   const chiffres = String(1000 + (n[6]! % 9000));
   return `${mot[0]!.toUpperCase()}${mot.slice(1)}-${chiffres}`;
 }
@@ -72,7 +74,11 @@ function Sites() {
   const envoyerLien = useServerFn(envoyerLienMotDePasse);
   const supprimerAcces = useServerFn(supprimerCompte);
 
-  const { data: sites, isLoading, isError } = useQuery({
+  const {
+    data: sites,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["sites"],
     queryFn: () => charger(),
   });
@@ -81,7 +87,11 @@ function Sites() {
   const [occupe, setOccupe] = useState<string | null>(null);
   const [mdpAffiche, setMdpAffiche] = useState<{ email: string; motDePasse: string } | null>(null);
   const [copie, setCopie] = useState(false);
-  const [saisieMdp, setSaisieMdp] = useState<{ userId: string; email: string; motDePasse: string } | null>(null);
+  const [saisieMdp, setSaisieMdp] = useState<{
+    userId: string;
+    email: string;
+    motDePasse: string;
+  } | null>(null);
   const [voirMdp, setVoirMdp] = useState(true);
 
   const [form, setForm] = useState(vide);
@@ -185,7 +195,9 @@ function Sites() {
     setOccupe(siteId);
     try {
       await inviter({ data: { email: mail, siteId } });
-      setMessage(`Accès créé pour ${mail}. Définissez maintenant son mot de passe ou envoyez-lui un lien.`);
+      setMessage(
+        `Accès créé pour ${mail}. Définissez maintenant son mot de passe ou envoyez-lui un lien.`,
+      );
       queryClient.invalidateQueries({ queryKey: ["comptes"] });
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Création de l'accès impossible.");
@@ -207,7 +219,8 @@ function Sites() {
   }
 
   async function onSupprimer(id: string) {
-    if (!confirm("Supprimer ce site et son accès ? Les visites déjà enregistrées sont conservées.")) return;
+    if (!confirm("Supprimer ce site et son accès ? Les visites déjà enregistrées sont conservées."))
+      return;
     const c = compteDuSite(id);
     if (c) await supprimerAcces({ data: { userId: c.userId } });
     await supprimer({ data: { id } });
@@ -219,22 +232,43 @@ function Sites() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sites</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. Après l'ajout, définissez le mot de passe de l'accès ou envoyez-lui un lien.
+        Un site = une adresse e-mail d'accueil, un mot de passe et un QR code. Après l'ajout,
+        définissez le mot de passe de l'accès ou envoyez-lui un lien.
       </p>
-      {message && <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">{message}</p>}
+      {message && (
+        <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+          {message}
+        </p>
+      )}
       {mdpAffiche && (
-        <div role="dialog" aria-label="Nouveau mot de passe" className="mt-4 rounded-xl border border-primary/40 bg-card p-5">
+        <div
+          role="dialog"
+          aria-label="Nouveau mot de passe"
+          className="mt-4 rounded-xl border border-primary/40 bg-card p-5"
+        >
           <p className="text-sm text-foreground">
-            Mot de passe enregistré pour <strong>{mdpAffiche.email}</strong>. Notez-le ou transmettez-le
-            maintenant : pour des raisons de sécurité, il n'est pas conservé en clair et ne pourra plus être
-            affiché.
+            Mot de passe enregistré pour <strong>{mdpAffiche.email}</strong>. Notez-le ou
+            transmettez-le maintenant : pour des raisons de sécurité, il n'est pas conservé en clair
+            et ne pourra plus être affiché.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <code data-testid="mdp-genere" className="rounded-md bg-muted px-3 py-2 font-mono text-base text-foreground">{mdpAffiche.motDePasse}</code>
-            <button onClick={() => navigator.clipboard.writeText(mdpAffiche.motDePasse).then(() => setCopie(true))} className={petitBouton}>
+            <code
+              data-testid="mdp-genere"
+              className="rounded-md bg-muted px-3 py-2 font-mono text-base text-foreground"
+            >
+              {mdpAffiche.motDePasse}
+            </code>
+            <button
+              onClick={() =>
+                navigator.clipboard.writeText(mdpAffiche.motDePasse).then(() => setCopie(true))
+              }
+              className={petitBouton}
+            >
               {copie ? "Copié ✓" : "Copier"}
             </button>
-            <button onClick={() => setMdpAffiche(null)} className={petitBouton}>Fermer</button>
+            <button onClick={() => setMdpAffiche(null)} className={petitBouton}>
+              Fermer
+            </button>
           </div>
         </div>
       )}
@@ -247,7 +281,8 @@ function Sites() {
           className="mt-4 rounded-xl border border-primary/40 bg-card p-5"
         >
           <p className="text-sm text-foreground">
-            Définir le mot de passe de <strong>{saisieMdp.email}</strong> (l'ancien ne fonctionnera plus) :
+            Définir le mot de passe de <strong>{saisieMdp.email}</strong> (l'ancien ne fonctionnera
+            plus) :
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input
@@ -263,8 +298,17 @@ function Sites() {
               className="w-64 rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm text-foreground"
               autoComplete="new-password"
             />
-            <button type="button" onClick={() => setVoirMdp((v) => !v)} className={petitBouton} aria-pressed={voirMdp}>
-              {voirMdp ? "🙈 Masquer" : "👁 Afficher"}
+            <button
+              type="button"
+              onClick={() => setVoirMdp((v) => !v)}
+              className={petitBouton}
+              aria-pressed={voirMdp}
+            >
+              {voirMdp ? (
+                <EyeOff className="inline h-4 w-4" aria-label="Masquer le mot de passe" />
+              ) : (
+                <Eye className="inline h-4 w-4" aria-label="Afficher le mot de passe" />
+              )}
             </button>
             <button
               type="button"
@@ -288,10 +332,19 @@ function Sites() {
         </form>
       )}
 
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
+      <form
+        onSubmit={onSubmit}
+        className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+      >
         <div>
           <label className="text-xs font-medium text-muted-foreground">Nom du site</label>
-          <input className={inputClass} value={form.nom} onChange={set("nom")} required maxLength={120} />
+          <input
+            className={inputClass}
+            value={form.nom}
+            onChange={set("nom")}
+            required
+            maxLength={120}
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">E-mail de l'accueil</label>
@@ -305,7 +358,10 @@ function Sites() {
         </div>
         <div className="sm:col-span-2">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="site-mdp">
-            Mot de passe de l'accès {form.id ? "(laisser vide pour ne pas le changer)" : "(optionnel, 8 caractères minimum)"}
+            Mot de passe de l'accès{" "}
+            {form.id
+              ? "(laisser vide pour ne pas le changer)"
+              : "(optionnel, 8 caractères minimum)"}
           </label>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <input
@@ -318,8 +374,17 @@ function Sites() {
               onChange={set("motDePasse")}
               autoComplete="new-password"
             />
-            <button type="button" onClick={() => setVoirMdp((v) => !v)} className={petitBouton} aria-pressed={voirMdp}>
-              {voirMdp ? "🙈 Masquer" : "👁 Afficher"}
+            <button
+              type="button"
+              onClick={() => setVoirMdp((v) => !v)}
+              className={petitBouton}
+              aria-pressed={voirMdp}
+            >
+              {voirMdp ? (
+                <EyeOff className="inline h-4 w-4" aria-label="Masquer le mot de passe" />
+              ) : (
+                <Eye className="inline h-4 w-4" aria-label="Afficher le mot de passe" />
+              )}
             </button>
             <button
               type="button"
@@ -335,19 +400,36 @@ function Sites() {
         </div>
         <div className="sm:col-span-2">
           <label className="text-xs font-medium text-muted-foreground">Adresse</label>
-          <input className={inputClass} value={form.adresse} onChange={set("adresse")} maxLength={200} />
+          <input
+            className={inputClass}
+            value={form.adresse}
+            onChange={set("adresse")}
+            maxLength={200}
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">Code postal</label>
-          <input className={inputClass} value={form.codePostal} onChange={set("codePostal")} maxLength={20} />
+          <input
+            className={inputClass}
+            value={form.codePostal}
+            onChange={set("codePostal")}
+            maxLength={20}
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">Ville</label>
-          <input className={inputClass} value={form.ville} onChange={set("ville")} maxLength={120} />
+          <input
+            className={inputClass}
+            value={form.ville}
+            onChange={set("ville")}
+            maxLength={120}
+          />
         </div>
 
         <div className="sm:col-span-2">
-          <label className="text-xs font-medium text-muted-foreground">Logo du site (remplace NOVA PASS sur l'accueil et au centre du QR code)</label>
+          <label className="text-xs font-medium text-muted-foreground">
+            Logo du site (remplace NOVA PASS sur l'accueil et au centre du QR code)
+          </label>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             {form.logoUrl && (
               <span className="rounded-md bg-qr-surface p-2">
@@ -356,10 +438,19 @@ function Sites() {
             )}
             <label className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-accent">
               {form.logoUrl ? "Changer le logo" : "Ajouter un logo"}
-              <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={choisirLogo} />
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={choisirLogo}
+              />
             </label>
             {form.logoUrl && (
-              <button type="button" onClick={() => setForm((f) => ({ ...f, logoUrl: null }))} className="text-sm text-destructive hover:underline">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, logoUrl: null }))}
+                className="text-sm text-destructive hover:underline"
+              >
                 Retirer
               </button>
             )}
@@ -413,7 +504,9 @@ function Sites() {
             {(sites ?? []).map((s) => (
               <tr key={s.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-medium text-foreground">
-                  {s.logo_url && <img src={s.logo_url} alt="" className="mb-1 h-6 w-auto object-contain" />}
+                  {s.logo_url && (
+                    <img src={s.logo_url} alt="" className="mb-1 h-6 w-auto object-contain" />
+                  )}
                   {s.nom}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
@@ -469,13 +562,27 @@ function Sites() {
                   {origine && (
                     <div className="flex items-center gap-3">
                       <div className="rounded-md bg-qr-surface p-1">
-                        <SiteQr canvasId={`qr-${s.id}`} value={`${origine}/checkin?site=${s.id}`} logoUrl={s.logo_url} size={512} displaySize={64} />
+                        <SiteQr
+                          canvasId={`qr-${s.id}`}
+                          value={`${origine}/checkin?site=${s.id}`}
+                          logoUrl={s.logo_url}
+                          size={512}
+                          displaySize={64}
+                        />
                       </div>
                       <div className="flex flex-col gap-1 text-xs">
-                        <button onClick={() => telechargerQr(s.id, s.nom)} className="text-left text-primary hover:underline">
+                        <button
+                          onClick={() => telechargerQr(s.id, s.nom)}
+                          className="text-left text-primary hover:underline"
+                        >
                           Télécharger (PNG)
                         </button>
-                        <a href={`/?site=${s.id}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        <a
+                          href={`/?site=${s.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
                           Écran d'accueil du site
                         </a>
                         <a href={`/affiche?site=${s.id}`} className="text-primary hover:underline">

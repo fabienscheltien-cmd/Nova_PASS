@@ -25,6 +25,9 @@ export type Database = {
           id: string
           recu_at: string
           site_id: string | null
+          statut: string
+          statut_at: string | null
+          statut_par: string | null
         }
         Insert: {
           categorie: Database["public"]["Enums"]["categorie_depot"]
@@ -36,6 +39,9 @@ export type Database = {
           id?: string
           recu_at?: string
           site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
         }
         Update: {
           categorie?: Database["public"]["Enums"]["categorie_depot"]
@@ -47,6 +53,9 @@ export type Database = {
           id?: string
           recu_at?: string
           site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
         }
         Relationships: [
           {
@@ -68,6 +77,9 @@ export type Database = {
           observation: string
           site_id: string | null
           trouve_at: string
+          statut: string
+          statut_at: string | null
+          statut_par: string | null
         }
         Insert: {
           cree_par?: string | null
@@ -78,6 +90,9 @@ export type Database = {
           observation?: string
           site_id?: string | null
           trouve_at?: string
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
         }
         Update: {
           cree_par?: string | null
@@ -88,6 +103,9 @@ export type Database = {
           observation?: string
           site_id?: string | null
           trouve_at?: string
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
         }
         Relationships: [
           {

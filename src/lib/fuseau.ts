@@ -33,3 +33,21 @@ export function heureParisVersUtc(date: string, heure: string): Date {
   const naif = new Date(`${date}T${heure}Z`);
   return new Date(naif.getTime() - decalageParis(naif));
 }
+
+/**
+ * Bornes UTC d'un filtre « Du (date + heure) / Au (date + heure) » saisi en heure
+ * de Paris. Sans heure : début de journée pour « Du », fin de journée pour « Au ».
+ */
+export function bornesParis(f: {
+  du?: string | undefined;
+  heureDu?: string | undefined;
+  au?: string | undefined;
+  heureAu?: string | undefined;
+}) {
+  return {
+    debut: f.du ? heureParisVersUtc(f.du, `${f.heureDu ?? "00:00"}:00`).toISOString() : undefined,
+    fin: f.au
+      ? heureParisVersUtc(f.au, f.heureAu ? `${f.heureAu}:59.999` : "23:59:59.999").toISOString()
+      : undefined,
+  };
+}

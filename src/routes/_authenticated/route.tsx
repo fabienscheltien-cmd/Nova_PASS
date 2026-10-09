@@ -31,6 +31,8 @@ function Layout() {
   const chemin = useRouterState({ select: (s) => s.location.pathname });
   const siteValide = (sites ?? []).find((s) => s.id === siteAnalyse) ?? null;
   // La super admin choisit d'abord le site à analyser (sauf pour gérer les sites).
+  // Site de la page : celui du compte, ou celui sélectionné par la super admin.
+  const nomSiteCourant = profil?.estSuperAdmin ? siteValide?.nom : profil?.siteNom;
   const doitChoisir =
     profil?.estSuperAdmin === true && sites !== undefined && !siteValide && chemin !== "/sites";
 
@@ -100,14 +102,7 @@ function Layout() {
                 </select>
               </label>
             )}
-            <span className="hidden text-muted-foreground sm:inline">
-              {profil?.email}
-              {profil?.estSuperAdmin
-                ? " · super admin"
-                : profil?.siteNom
-                  ? ` · ${profil.siteNom}`
-                  : ""}
-            </span>
+            <span className="hidden text-muted-foreground sm:inline">{profil?.email}</span>
             <button
               onClick={seDeconnecter}
               className="rounded-md border border-border px-3 py-1.5 text-foreground hover:bg-accent"
@@ -117,9 +112,9 @@ function Layout() {
           </div>
         </div>
       </header>
-      {profil && !profil.estSuperAdmin && profil.siteNom && (
+      {nomSiteCourant && !doitChoisir && chemin !== "/affiche" && (
         <p className="mx-auto max-w-6xl px-4 pt-6 text-2xl font-semibold tracking-tight text-foreground print:hidden">
-          Bienvenue chez {profil.siteNom}
+          Bienvenue chez {nomSiteCourant}
         </p>
       )}
       {doitChoisir ? <ChoixSiteAnalyse sites={sites ?? []} /> : <Outlet />}
