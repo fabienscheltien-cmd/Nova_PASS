@@ -13,6 +13,23 @@ async function exigerSuperAdmin(context: { supabase: any; userId: string }) {
   if (!data) throw new Error("Accès réservé à la super administratrice.");
 }
 
+/** Un compte super admin ne doit jamais être modifié depuis la gestion des accès des sites. */
+async function refuserSiSuperAdmin(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "super_admin")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) {
+    throw new Error(
+      "Cette adresse est celle d'un compte super admin : elle ne peut pas servir d'accès à un site. Choisissez une autre adresse d'accueil.",
+    );
+  }
+}
+
 const siteSchema = z.object({
   id: z.string().uuid().optional(),
   nom: z.string().trim().min(1).max(120),
@@ -29,6 +46,15 @@ export const enregistrerSite = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => siteSchema.parse(data))
   .handler(async ({ data, context }) => {
     await exigerSuperAdmin(context);
+    if (data.emailAccueil) {
+      // L'e-mail d'accueil d'un site ne peut pas être celui d'un compte super admin.
+      const { data: profil } = await context.supabase
+        .from("profils")
+        .select("user_id")
+        .eq("email", data.emailAccueil.toLowerCase())
+        .maybeSingle();
+      if (profil) await refuserSiSuperAdmin(profil.user_id);
+    }
     const ligne = {
       nom: data.nom,
       adresse: data.adresse,
@@ -43,7 +69,11 @@ export const enregistrerSite = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { ok: true, id: data.id };
     }
-    const { data: cree, error } = await context.supabase.from("sites").insert(ligne).select("id").single();
+    const { data: cree, error } = await context.supabase
+      .from("sites")
+      .insert(ligne)
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
     return { ok: true, id: cree.id as string };
   });
@@ -133,6 +163,7 @@ export const modifierCompte = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await exigerSuperAdmin(context);
+    await refuserSiSuperAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.siteId !== undefined) {
       const { error } = await supabaseAdmin
@@ -157,7 +188,9 @@ export const supprimerCompte = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     await exigerSuperAdmin(context);
-    if (data.userId === context.userId) throw new Error("Vous ne pouvez pas supprimer votre propre compte.");
+    await refuserSiSuperAdmin(data.userId);
+    if (data.userId === context.userId)
+      throw new Error("Vous ne pouvez pas supprimer votre propre compte.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     await supabaseAdmin.from("profils").delete().eq("user_id", data.userId);
@@ -182,6 +215,7 @@ export const genererMotDePasse = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     await exigerSuperAdmin(context);
+    await refuserSiSuperAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const motDePasse = motDePasseAleatoire();
     // L'adresse a été choisie par la super admin : on la considère confirmée pour que le mot de passe fonctionne tout de suite.
@@ -235,6 +269,20 @@ export const inviterCompte = createServerFn({ method: "POST" })
       }
     }
     if (!userId) throw new Error(error?.message ?? "Création de l'accès impossible");
+    if (!cree?.user) {
+      // Compte existant : jamais un super admin, ni l'accès d'un autre site.
+      await refuserSiSuperAdmin(userId);
+      const { data: profilExistant } = await supabaseAdmin
+        .from("profils")
+        .select("site_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (profilExistant?.site_id && profilExistant.site_id !== data.siteId) {
+        throw new Error(
+          "Cette adresse est déjà l'accès d'un autre site. Choisissez une autre adresse.",
+        );
+      }
+    }
     if (!cree?.user && data.motDePasse) {
       const { error: errMdp } = await supabaseAdmin.auth.admin.updateUserById(userId, {
         password: data.motDePasse,
