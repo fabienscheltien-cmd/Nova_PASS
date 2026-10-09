@@ -213,7 +213,7 @@ function Visiteurs() {
         />
       </div>
 
-      <AjoutVisiteur sites={sites} profil={profil} />
+      <AjoutVisiteur profil={profil} />
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
         {profil?.estSuperAdmin && (

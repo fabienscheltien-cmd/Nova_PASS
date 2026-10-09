@@ -37,22 +37,22 @@ export const CATEGORIES_DEPOT = ["courrier", "colis", "cles", "autre"] as const;
 export type CategorieDepot = (typeof CATEGORIES_DEPOT)[number];
 
 /**
- * Site sur lequel écrire : celui du compte pour un accueil (la valeur envoyée
- * par le navigateur est ignorée), celui choisi pour la super admin.
+ * Site sur lequel écrire : toujours celui du compte (la valeur envoyée par le
+ * navigateur n'est pas prise en compte). La super admin consulte les registres
+ * mais n'y ajoute pas d'entrées : seul le compte d'un site le fait.
  */
-async function siteCible(context: Contexte, siteDemande: string | undefined) {
+async function siteCible(context: Contexte) {
   const [{ data: profil }, { data: roles }] = await Promise.all([
     context.supabase.from("profils").select("site_id").eq("user_id", context.userId).maybeSingle(),
     context.supabase.from("user_roles").select("role").eq("user_id", context.userId),
   ]);
-  const estSuperAdmin = (roles ?? []).some((r) => r.role === "super_admin");
-  const siteId = estSuperAdmin ? siteDemande : profil?.site_id;
-  if (!siteId) {
+  if ((roles ?? []).some((r) => r.role === "super_admin")) {
     throw new Error(
-      estSuperAdmin ? "Choisissez le site concerné." : "Aucun site n'est rattaché à ce compte.",
+      "Les entrées du registre sont ajoutées par le compte du site, pas par la super admin.",
     );
   }
-  return siteId;
+  if (!profil?.site_id) throw new Error("Aucun site n'est rattaché à ce compte.");
+  return profil.site_id;
 }
 
 type Requete = {
@@ -112,12 +112,11 @@ export const ajouterVisiteManuelle = createServerFn({ method: "POST" })
         personneVisitee: champ(120),
         entrepriseVisitee: champ(120),
         arriveeAt: instantSaisi,
-        siteId: z.string().uuid().optional(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const siteId = await siteCible(context, data.siteId);
+    const siteId = await siteCible(context);
     const { error } = await context.supabase.from("visites").insert({
       nom: data.nom,
       prenom: data.prenom,
@@ -174,12 +173,11 @@ export const ajouterObjetTrouve = createServerFn({ method: "POST" })
         emplacement: texteLibre(160),
         observation: texteLibre(2000),
         trouveAt: instantSaisi,
-        siteId: z.string().uuid().optional(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const siteId = await siteCible(context, data.siteId);
+    const siteId = await siteCible(context);
     const { error } = await context.supabase.from("objets_trouves").insert({
       objet: data.objet,
       emplacement: data.emplacement,
@@ -236,12 +234,11 @@ export const ajouterDepot = createServerFn({ method: "POST" })
         expediteur: texteLibre(160),
         description: texteLibre(2000),
         recuAt: instantSaisi,
-        siteId: z.string().uuid().optional(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const siteId = await siteCible(context, data.siteId);
+    const siteId = await siteCible(context);
     const { error } = await context.supabase.from("courriers_colis").insert({
       categorie: data.categorie,
       destinataire: data.destinataire,

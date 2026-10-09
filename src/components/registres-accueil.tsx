@@ -26,6 +26,11 @@ export const LIBELLES_CATEGORIE: Record<CategorieDepot, string> = {
 export type Site = { id: string; nom: string };
 export type Profil = { estSuperAdmin: boolean; siteId: string | null } | undefined;
 
+/** Seul le compte d'un site ajoute des entrées ; la super admin consulte. */
+export function peutAjouter(profil: Profil) {
+  return profil !== undefined && !profil.estSuperAdmin && profil.siteId !== null;
+}
+
 export function formatFr(iso: string) {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
@@ -190,6 +195,7 @@ export function BoutonsExport({
 
 /** Formulaire d'ajout repliable (aucune suppression possible ensuite : on le rappelle). */
 function PanneauAjout({
+  autorise,
   titre,
   ouvert,
   setOuvert,
@@ -198,6 +204,7 @@ function PanneauAjout({
   envoi,
   children,
 }: {
+  autorise: boolean;
   titre: string;
   ouvert: boolean;
   setOuvert: (v: boolean) => void;
@@ -206,6 +213,7 @@ function PanneauAjout({
   envoi: boolean;
   children: ReactNode;
 }) {
+  if (!autorise) return null;
   if (!ouvert) {
     return (
       <button
@@ -267,37 +275,6 @@ function Champ({
   );
 }
 
-function ChoixSite({
-  id,
-  sites,
-  value,
-  onChange,
-}: {
-  id: string;
-  sites: Site[] | undefined;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Champ id={id} label="Site">
-      <select
-        id={id}
-        required
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`mt-1 w-full ${inputClass}`}
-      >
-        <option value="">Choisir…</option>
-        {(sites ?? []).map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.nom}
-          </option>
-        ))}
-      </select>
-    </Champ>
-  );
-}
-
 /** Logique commune des formulaires d'ajout. */
 function useAjout<T extends Record<string, string>>(initial: () => T, cles: string[][]) {
   const queryClient = useQueryClient();
@@ -328,7 +305,7 @@ function useAjout<T extends Record<string, string>>(initial: () => T, cles: stri
 
 // ---------- Visiteurs : saisie manuelle ----------
 
-export function AjoutVisiteur({ sites, profil }: { sites: Site[] | undefined; profil: Profil }) {
+export function AjoutVisiteur({ profil }: { profil: Profil }) {
   const ajouter = useServerFn(ajouterVisiteManuelle);
   const a = useAjout(
     () => ({
@@ -338,12 +315,12 @@ export function AjoutVisiteur({ sites, profil }: { sites: Site[] | undefined; pr
       entrepriseVisitee: "",
       personneVisitee: "",
       arriveeAt: maintenantLocal(),
-      siteId: "",
     }),
     [["visites"], ["stats"]],
   );
   return (
     <PanneauAjout
+      autorise={peutAjouter(profil)}
       titre="Ajouter un visiteur manuellement"
       ouvert={a.ouvert}
       setOuvert={a.setOuvert}
@@ -351,26 +328,17 @@ export function AjoutVisiteur({ sites, profil }: { sites: Site[] | undefined; pr
       envoi={a.envoi}
       onSubmit={(e) => {
         e.preventDefault();
-        const { siteId, arriveeAt, ...reste } = a.form;
+        const { arriveeAt, ...reste } = a.form;
         void a.soumettre(() =>
           ajouter({
             data: {
               ...reste,
               arriveeAt: new Date(arriveeAt).toISOString(),
-              ...(siteId ? { siteId } : {}),
             },
           }),
         );
       }}
     >
-      {profil?.estSuperAdmin && (
-        <ChoixSite
-          id="v-site"
-          sites={sites}
-          value={a.form.siteId}
-          onChange={(v) => a.setForm((f) => ({ ...f, siteId: v }))}
-        />
-      )}
       {(
         [
           ["prenom", "Prénom", 80],
@@ -422,7 +390,6 @@ export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; p
       emplacement: "",
       observation: "",
       trouveAt: maintenantLocal(),
-      siteId: "",
     }),
     [["objets"]],
   );
@@ -453,6 +420,7 @@ export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; p
       </div>
 
       <PanneauAjout
+        autorise={peutAjouter(profil)}
         titre="Déclarer un objet trouvé"
         ouvert={a.ouvert}
         setOuvert={a.setOuvert}
@@ -460,26 +428,17 @@ export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; p
         envoi={a.envoi}
         onSubmit={(e) => {
           e.preventDefault();
-          const { siteId, trouveAt, ...reste } = a.form;
+          const { trouveAt, ...reste } = a.form;
           void a.soumettre(() =>
             ajouter({
               data: {
                 ...reste,
                 trouveAt: new Date(trouveAt).toISOString(),
-                ...(siteId ? { siteId } : {}),
               },
             }),
           );
         }}
       >
-        {profil?.estSuperAdmin && (
-          <ChoixSite
-            id="o-site"
-            sites={sites}
-            value={a.form.siteId}
-            onChange={(v) => a.setForm((f) => ({ ...f, siteId: v }))}
-          />
-        )}
         <Champ id="o-objet" label="Objet">
           <input
             id="o-objet"
@@ -570,7 +529,6 @@ export function RegistreDepots({ sites, profil }: { sites: Site[] | undefined; p
       expediteur: "",
       description: "",
       recuAt: maintenantLocal(),
-      siteId: "",
     }),
     [["depots"]],
   );
@@ -602,6 +560,7 @@ export function RegistreDepots({ sites, profil }: { sites: Site[] | undefined; p
       </div>
 
       <PanneauAjout
+        autorise={peutAjouter(profil)}
         titre="Enregistrer un courrier, colis, clé…"
         ouvert={a.ouvert}
         setOuvert={a.setOuvert}
@@ -609,27 +568,18 @@ export function RegistreDepots({ sites, profil }: { sites: Site[] | undefined; p
         envoi={a.envoi}
         onSubmit={(e) => {
           e.preventDefault();
-          const { siteId, recuAt, categorie: cat, ...reste } = a.form;
+          const { recuAt, categorie: cat, ...reste } = a.form;
           void a.soumettre(() =>
             ajouter({
               data: {
                 ...reste,
                 categorie: cat as CategorieDepot,
                 recuAt: new Date(recuAt).toISOString(),
-                ...(siteId ? { siteId } : {}),
               },
             }),
           );
         }}
       >
-        {profil?.estSuperAdmin && (
-          <ChoixSite
-            id="d-site"
-            sites={sites}
-            value={a.form.siteId}
-            onChange={(v) => a.setForm((f) => ({ ...f, siteId: v }))}
-          />
-        )}
         <Champ id="d-cat" label="Catégorie">
           <select
             id="d-cat"
