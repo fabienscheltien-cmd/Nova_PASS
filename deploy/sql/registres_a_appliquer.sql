@@ -103,5 +103,15 @@ FOR UPDATE TO authenticated
 USING (statut = 'recu' AND site_id = public.site_utilisateur(auth.uid()))
 WITH CHECK (statut = 'remis' AND statut_par = auth.uid() AND site_id = public.site_utilisateur(auth.uid()));
 
--- 5. Recharge le cache de l'API (fait disparaître « schema cache ») -------
+-- 5. Réparation : un compte super admin ne doit pas être l'accès d'un site --
+-- (un rattachement a pu se produire si l'e-mail d'accueil d'un site était
+-- celui de la super admin).
+DELETE FROM public.user_roles
+WHERE role = 'hotesse'
+  AND user_id IN (SELECT user_id FROM public.user_roles WHERE role = 'super_admin');
+UPDATE public.profils SET site_id = NULL
+WHERE site_id IS NOT NULL
+  AND user_id IN (SELECT user_id FROM public.user_roles WHERE role = 'super_admin');
+
+-- 6. Recharge le cache de l'API (fait disparaître « schema cache ») -------
 NOTIFY pgrst, 'reload schema';

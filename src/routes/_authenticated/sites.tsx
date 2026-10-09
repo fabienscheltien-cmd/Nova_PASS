@@ -138,6 +138,12 @@ function Sites() {
     setMessage(null);
     const { motDePasse, ...site } = form;
     const mail = form.emailAccueil.trim().toLowerCase();
+    if (mail && comptes?.some((c) => c.estSuperAdmin && c.email.toLowerCase() === mail)) {
+      setErreur(
+        "Cette adresse est celle d'un compte super admin : utilisez une autre adresse pour l'accueil du site.",
+      );
+      return;
+    }
     if (motDePasse && !mail) {
       setErreur("Renseignez l'e-mail de l'accueil pour lui attribuer ce mot de passe.");
       return;

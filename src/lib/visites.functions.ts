@@ -151,11 +151,16 @@ export const listerVisites = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => filtresSchema.parse(data ?? {}))
   .handler(async ({ data, context }) => {
+    // Tant que la migration des registres n'est pas appliquée, la colonne
+    // saisie_manuelle n'existe pas : on relit alors sans elle plutôt que d'échouer.
+    let avecSaisie = true;
     const construire = (debut: number, fin: number) => {
       let requete = context.supabase
         .from("visites")
         .select(
-          "id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, saisie_manuelle, sites(nom, adresse, code_postal, ville)",
+          `id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, ${
+            avecSaisie ? "saisie_manuelle, " : ""
+          }sites(nom, adresse, code_postal, ville)`,
         )
         .order("arrivee_at", { ascending: false })
         .order("id")
@@ -182,7 +187,11 @@ export const listerVisites = createServerFn({ method: "POST" })
     const MAX_LIGNES = 50_000;
     const rows: unknown[] = [];
     for (let debut = 0; debut < MAX_LIGNES; debut += TAILLE_PAGE) {
-      const { data: page, error } = await construire(debut, debut + TAILLE_PAGE - 1);
+      let { data: page, error } = await construire(debut, debut + TAILLE_PAGE - 1);
+      if (error && avecSaisie && error.message.includes("saisie_manuelle")) {
+        avecSaisie = false;
+        ({ data: page, error } = await construire(debut, debut + TAILLE_PAGE - 1));
+      }
       if (error) throw new Error(error.message);
       rows.push(...(page ?? []));
       if (!page || page.length < TAILLE_PAGE) break;
