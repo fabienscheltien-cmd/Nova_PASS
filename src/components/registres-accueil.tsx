@@ -2,6 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { neutraliserFormule } from "@/lib/export";
+import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   ajouterDepot,
   ajouterObjetTrouve,
@@ -68,30 +69,26 @@ export async function exporter(
   URL.revokeObjectURL(url);
 }
 
-export type Filtres = { du: string; au: string; recherche: string; site: string };
-export const filtresVides: Filtres = { du: "", au: "", recherche: "", site: "" };
+export type Filtres = { du: string; au: string; recherche: string };
+export const filtresVides: Filtres = { du: "", au: "", recherche: "" };
 
-export function versRequete(f: Filtres) {
+export function versRequete(f: Filtres, siteId: string | undefined) {
   return {
     du: f.du || undefined,
     au: f.au || undefined,
     recherche: f.recherche,
-    siteId: f.site || undefined,
+    siteId,
   };
 }
 
 export function BarreFiltres({
   filtres,
   onChange,
-  sites,
-  profil,
   placeholder,
   children,
 }: {
   filtres: Filtres;
   onChange: (f: Filtres) => void;
-  sites: Site[] | undefined;
-  profil: Profil;
   placeholder: string;
   children?: ReactNode;
 }) {
@@ -99,26 +96,6 @@ export function BarreFiltres({
     onChange({ ...filtres, [k]: e.target.value });
   return (
     <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
-      {profil?.estSuperAdmin && (
-        <div>
-          <label className={labelClass} htmlFor="f-site">
-            Site
-          </label>
-          <select
-            id="f-site"
-            value={filtres.site}
-            onChange={maj("site")}
-            className={`mt-1 ${inputClass}`}
-          >
-            <option value="">Tous les sites</option>
-            {(sites ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nom}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       {children}
       <div>
         <label className={labelClass} htmlFor="f-du">
@@ -375,13 +352,14 @@ export function AjoutVisiteur({ profil }: { profil: Profil }) {
 
 // ---------- Objets trouvés ----------
 
-export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; profil: Profil }) {
+export function RegistreObjets({ profil }: { profil: Profil }) {
   const charger = useServerFn(listerObjetsTrouves);
   const ajouter = useServerFn(ajouterObjetTrouve);
   const [filtres, setFiltres] = useState(filtresVides);
+  const siteTravail = useSiteDeTravail(profil);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["objets", filtres],
-    queryFn: () => charger({ data: versRequete(filtres) }),
+    queryKey: ["objets", filtres, siteTravail],
+    queryFn: () => charger({ data: versRequete(filtres, siteTravail) }),
     refetchInterval: 30000,
   });
   const a = useAjout(
@@ -484,8 +462,6 @@ export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; p
       <BarreFiltres
         filtres={filtres}
         onChange={setFiltres}
-        sites={sites}
-        profil={profil}
         placeholder="Objet, emplacement, observation…"
       />
 
@@ -511,15 +487,18 @@ export function RegistreObjets({ sites, profil }: { sites: Site[] | undefined; p
 
 // ---------- Courrier, colis, clés, autre ----------
 
-export function RegistreDepots({ sites, profil }: { sites: Site[] | undefined; profil: Profil }) {
+export function RegistreDepots({ profil }: { profil: Profil }) {
   const charger = useServerFn(listerDepots);
   const ajouter = useServerFn(ajouterDepot);
   const [filtres, setFiltres] = useState(filtresVides);
+  const siteTravail = useSiteDeTravail(profil);
   const [categorie, setCategorie] = useState<CategorieDepot | "">("");
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["depots", filtres, categorie],
+    queryKey: ["depots", filtres, categorie, siteTravail],
     queryFn: () =>
-      charger({ data: { ...versRequete(filtres), ...(categorie ? { categorie } : {}) } }),
+      charger({
+        data: { ...versRequete(filtres, siteTravail), ...(categorie ? { categorie } : {}) },
+      }),
     refetchInterval: 30000,
   });
   const a = useAjout(
@@ -638,8 +617,6 @@ export function RegistreDepots({ sites, profil }: { sites: Site[] | undefined; p
       <BarreFiltres
         filtres={filtres}
         onChange={setFiltres}
-        sites={sites}
-        profil={profil}
         placeholder="Destinataire, expéditeur, description…"
       >
         <div>

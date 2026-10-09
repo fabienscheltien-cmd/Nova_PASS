@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { choisirSiteAnalyse } from "@/lib/site-analyse";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -60,6 +61,8 @@ function AuthPage() {
       );
       return;
     }
+    // Nouvelle session : la super admin choisira d'abord le site à analyser.
+    choisirSiteAnalyse("");
     navigate({ to: "/registre" });
   }
 

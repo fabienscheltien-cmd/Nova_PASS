@@ -140,6 +140,11 @@ const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const filtresSchema = z.object({
   du: jour.optional(),
   au: jour.optional(),
+  // Créneau d'une heure (« 14 » = 14:00 à 14:59), appliqué aux bornes du jour.
+  heure: z
+    .string()
+    .regex(/^([01]\d|2[0-3])$/)
+    .optional(),
   recherche: z.string().max(120).optional(),
   siteId: z.string().uuid().optional(),
 });
@@ -160,13 +165,12 @@ export const listerVisites = createServerFn({ method: "POST" })
 
       if (data.siteId) requete = requete.eq("site_id", data.siteId);
       // Bornes calculées en heure de Paris, quel que soit le fuseau du serveur.
+      const debutJour = data.heure ? `${data.heure}:00:00` : "00:00:00";
+      const finJour = data.heure ? `${data.heure}:59:59.999` : "23:59:59.999";
       if (data.du)
-        requete = requete.gte("arrivee_at", heureParisVersUtc(data.du, "00:00:00").toISOString());
+        requete = requete.gte("arrivee_at", heureParisVersUtc(data.du, debutJour).toISOString());
       if (data.au)
-        requete = requete.lte(
-          "arrivee_at",
-          heureParisVersUtc(data.au, "23:59:59.999").toISOString(),
-        );
+        requete = requete.lte("arrivee_at", heureParisVersUtc(data.au, finJour).toISOString());
 
       const terme = data.recherche?.trim();
       if (terme) {

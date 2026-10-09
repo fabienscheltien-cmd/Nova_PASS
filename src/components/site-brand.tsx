@@ -2,19 +2,52 @@ import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 
-/** Logo central du header : logo du site s'il existe, sinon NOVA + PASS. */
-export function SiteBrand({ logoUrl, nom }: { logoUrl?: string | null | undefined; nom?: string | null | undefined }) {
+/**
+ * Logo central : logo du site s'il existe (sur un cartouche clair pour rester
+ * lisible sur la photo), sinon NOVA + PASS. « affiche » = grand format pour l'A4.
+ */
+export function SiteBrand({
+  logoUrl,
+  nom,
+  format = "entete",
+}: {
+  logoUrl?: string | null | undefined;
+  nom?: string | null | undefined;
+  format?: "entete" | "affiche";
+}) {
   if (logoUrl) {
+    return format === "affiche" ? (
+      <span className="flex items-center justify-center rounded-2xl bg-qr-surface px-[8mm] py-[5mm] shadow-2xl ring-1 ring-black/5">
+        <img
+          src={logoUrl}
+          alt={nom ?? "Logo du site"}
+          className="h-[24mm] w-auto max-w-[110mm] object-contain"
+        />
+      </span>
+    ) : (
+      <span className="flex items-center justify-center rounded-xl bg-qr-surface px-4 py-2 shadow-lg ring-1 ring-black/5">
+        <img
+          src={logoUrl}
+          alt={nom ?? "Logo du site"}
+          className="h-12 w-auto max-w-[220px] object-contain sm:h-16 sm:max-w-[300px]"
+        />
+      </span>
+    );
+  }
+  if (format === "affiche") {
     return (
-      <span className="flex items-center justify-center rounded-lg bg-qr-surface px-3 py-1.5 shadow-md">
-        <img src={logoUrl} alt={nom ?? "Logo du site"} className="h-9 w-auto max-w-[200px] object-contain sm:h-11" />
+      <span className="flex items-center gap-4">
+        <img src={novaLogo.url} alt="NOVA" className="h-[18mm] w-auto drop-shadow-sm" />
+        <span className="text-6xl font-bold uppercase tracking-wide text-pass-pastel">Pass</span>
       </span>
     );
   }
   return (
     <span className="flex items-center gap-2 sm:gap-3">
       <img src={novaLogo.url} alt="NOVA" className="h-8 w-auto drop-shadow-sm sm:h-10" />
-      <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">Pass</span>
+      <span className="text-2xl font-bold uppercase tracking-wide text-pass-pastel sm:text-3xl">
+        Pass
+      </span>
     </span>
   );
 }
@@ -59,7 +92,13 @@ export function SiteQr({
     size,
     level: "H" as const,
     marginSize: 2,
-    imageSettings: { src, width: box.w, height: box.h, excavate: true, crossOrigin: "anonymous" as const },
+    imageSettings: {
+      src,
+      width: box.w,
+      height: box.h,
+      excavate: true,
+      crossOrigin: "anonymous" as const,
+    },
   };
   if (canvasId) {
     return (

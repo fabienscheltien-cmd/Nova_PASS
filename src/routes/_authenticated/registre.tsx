@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
+import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   AjoutVisiteur,
   BoutonsExport,
@@ -30,7 +31,8 @@ export const Route = createFileRoute("/_authenticated/registre")({
       { title: "Registre des visiteurs — Nova Pass" },
       {
         name: "description",
-        content: "Consultez, filtrez par site et par dates, triez et exportez le registre des visiteurs.",
+        content:
+          "Consultez, filtrez par site et par dates, triez et exportez le registre des visiteurs.",
       },
       { property: "og:title", content: "Registre des visiteurs — Nova Pass" },
       { property: "og:description", content: "Historique des arrivées avec filtres et export." },
@@ -52,7 +54,10 @@ function Registre() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Registre</h1>
-      <nav className="mt-4 flex flex-wrap gap-1 border-b border-border" aria-label="Rubriques du registre">
+      <nav
+        className="mt-4 flex flex-wrap gap-1 border-b border-border"
+        aria-label="Rubriques du registre"
+      >
         {(Object.keys(ONGLETS) as Onglet[]).map((o) => (
           <button
             key={o}
@@ -69,8 +74,8 @@ function Registre() {
         ))}
       </nav>
       <div className="mt-6">
-        {onglet === "objets" && <RegistreObjets sites={sites} profil={profil} />}
-        {onglet === "courrier" && <RegistreDepots sites={sites} profil={profil} />}
+        {onglet === "objets" && <RegistreObjets profil={profil} />}
+        {onglet === "courrier" && <RegistreDepots profil={profil} />}
         {onglet === "visiteurs" && <Visiteurs />}
       </div>
     </div>
@@ -104,12 +109,7 @@ function adresseSite(v: Visite) {
 }
 
 type ColTri =
-  | "arrivee_at"
-  | "visiteur"
-  | "entreprise"
-  | "personne_visitee"
-  | "entreprise_visitee"
-  | "site";
+  "arrivee_at" | "visiteur" | "entreprise" | "personne_visitee" | "entreprise_visitee" | "site";
 type SensTri = "asc" | "desc";
 
 function Visiteurs() {
@@ -117,25 +117,26 @@ function Visiteurs() {
   const chargerSites = useServerFn(listerSites);
   const chargerProfil = useServerFn(monProfil);
 
-  const [du, setDu] = useState("");
-  const [au, setAu] = useState("");
+  const [date, setDate] = useState("");
+  const [heure, setHeure] = useState("");
   const [recherche, setRecherche] = useState("");
-  const [site, setSite] = useState("");
   const [tri, setTri] = useState<ColTri>("arrivee_at");
   const [sens, setSens] = useState<SensTri>("desc");
 
   const { data: profil } = useQuery({ queryKey: ["monProfil"], queryFn: () => chargerProfil() });
+  const siteTravail = useSiteDeTravail(profil);
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["visites", du, au, recherche, site],
+    queryKey: ["visites", date, heure, recherche, siteTravail],
     queryFn: () =>
       charger({
         data: {
-          du: du || undefined,
-          au: au || undefined,
+          du: date || undefined,
+          au: date || undefined,
+          heure: date && heure ? heure : undefined,
           recherche,
-          siteId: site || undefined,
+          siteId: siteTravail,
         },
       }),
     refetchInterval: 30000,
@@ -216,49 +217,37 @@ function Visiteurs() {
       <AjoutVisiteur profil={profil} />
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4">
-        {profil?.estSuperAdmin && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground" htmlFor="site">
-              Site
-            </label>
-            <select
-              id="site"
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-            >
-              <option value="">Tous les sites</option>
-              {(sites ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nom}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="du">
-            Du
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="date">
+            Date
           </label>
           <input
-            id="du"
+            id="date"
             type="date"
-            value={du}
-            onChange={(e) => setDu(e.target.value)}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
             className={`mt-1 ${inputClass}`}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="au">
-            Au
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="heure">
+            Heure
           </label>
-          <input
-            id="au"
-            type="date"
-            value={au}
-            onChange={(e) => setAu(e.target.value)}
-            className={`mt-1 ${inputClass}`}
-          />
+          <select
+            id="heure"
+            value={heure}
+            disabled={!date}
+            title={date ? undefined : "Choisissez d'abord une date"}
+            onChange={(e) => setHeure(e.target.value)}
+            className={`mt-1 ${inputClass} disabled:opacity-50`}
+          >
+            <option value="">Toute la journée</option>
+            {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => (
+              <option key={h} value={h}>
+                {h} h – {h} h 59
+              </option>
+            ))}
+          </select>
         </div>
         <div className="min-w-[200px] flex-1">
           <label className="block text-xs font-medium text-muted-foreground" htmlFor="q">
@@ -274,10 +263,9 @@ function Visiteurs() {
         </div>
         <button
           onClick={() => {
-            setDu("");
-            setAu("");
+            setDate("");
+            setHeure("");
             setRecherche("");
-            setSite("");
           }}
           className="rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-accent"
         >

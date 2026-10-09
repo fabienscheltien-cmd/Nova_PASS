@@ -10,7 +10,6 @@ import { listerSitesPublics } from "@/lib/visites.functions";
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
-
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
     site: typeof search["site"] === "string" ? (search["site"] as string) : undefined,
@@ -69,10 +68,8 @@ function Index() {
   }, [sites, siteId]);
 
   const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
-  const url = origine
-    ? `${origine}/checkin${siteId ? `?site=${siteId}` : ""}`
-    : "";
-
+  // Un QR code = un site : pas de QR générique sans site.
+  const url = origine && siteActif ? `${origine}/checkin?site=${siteActif.id}` : "";
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
@@ -117,16 +114,16 @@ function Index() {
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
-
-            
-
-
-
             <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
               {url ? (
                 <div aria-label="QR code vers le formulaire visiteur">
                   <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />
                 </div>
+              ) : sites && !siteActif ? (
+                <p className="flex h-[244px] w-[244px] items-center p-4 text-center text-sm text-foreground">
+                  Ouvrez cet écran depuis « Sites et accès » → « Écran d'accueil du site » pour
+                  afficher le QR code du site.
+                </p>
               ) : (
                 <div className="h-[244px] w-[244px] animate-pulse rounded-md bg-muted" />
               )}
@@ -139,7 +136,6 @@ function Index() {
                 search={{ site: siteId || undefined }}
                 className="font-semibold text-hero-foreground underline decoration-pass underline-offset-4"
               >
-
                 Remplir le formulaire ici
               </Link>
             </p>
