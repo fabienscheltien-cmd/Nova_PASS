@@ -176,7 +176,11 @@ export const genererMotDePasse = createServerFn({ method: "POST" })
     await exigerSuperAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const motDePasse = motDePasseAleatoire();
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: motDePasse });
+    // L'adresse a été choisie par la super admin : on la considère confirmée pour que le mot de passe fonctionne tout de suite.
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: motDePasse,
+      email_confirm: true,
+    });
     if (error) throw new Error(error.message);
     return { motDePasse };
   });
