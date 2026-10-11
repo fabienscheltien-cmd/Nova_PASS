@@ -9,6 +9,7 @@ import { listerSitesPublics } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
+import { urlCheckin } from "@/lib/config";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
@@ -36,7 +37,6 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { site: siteParam } = Route.useSearch();
-  const [origine, setOrigine] = useState("");
   const [siteId, setSiteId] = useState(siteParam ?? "");
   const chargerSites = useServerFn(listerSitesPublics);
   const { data: sites, isError: sitesIndisponibles } = useQuery({
@@ -51,7 +51,6 @@ function Index() {
   const [sessionEnCours, setSessionEnCours] = useState(true);
 
   useEffect(() => {
-    setOrigine(window.location.origin);
     // Si une hôtesse est connectée, l'écran affiche automatiquement son site.
     supabase.auth
       .getSession()
@@ -87,12 +86,8 @@ function Index() {
     (siteVoulu !== "" && sites === undefined && !sitesIndisponibles) ||
     (!siteParam && sessionEnCours);
   // QR du site s'il est connu ; sinon QR par défaut vers le formulaire visiteur.
-  const url =
-    !origine || siteEnAttente
-      ? ""
-      : siteActif
-        ? `${origine}/checkin?site=${siteActif.id}`
-        : `${origine}/checkin`;
+  // Toujours l'adresse publique (jamais celle de la prévisualisation Lovable).
+  const url = siteEnAttente ? "" : urlCheckin(siteActif?.id);
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
