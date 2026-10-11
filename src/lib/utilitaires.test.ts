@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bornesParis, heureParisVersUtc } from "./fuseau.ts";
 import { echapperHtml, neutraliserFormule } from "./export.ts";
+import { erreurMotDePasse } from "./mot-de-passe.ts";
 
 test("heure de Paris → UTC en été (UTC+2)", () => {
   assert.equal(
@@ -56,4 +57,12 @@ test("filtre Du/Au sans heure = journées entières", () => {
     fin: "2026-12-02T22:59:59.999Z",
   });
   assert.deepEqual(bornesParis({}), { debut: undefined, fin: undefined });
+});
+
+test("règles du mot de passe", () => {
+  assert.equal(erreurMotDePasse("Bamiko-4821"), null);
+  assert.equal(erreurMotDePasse("Élodie2026"), null);
+  assert.match(erreurMotDePasse("11111111") ?? "", /majuscule/);
+  assert.match(erreurMotDePasse("Abc1") ?? "", /8 caractères/);
+  assert.match(erreurMotDePasse("Abcdefgh") ?? "", /chiffre/);
 });

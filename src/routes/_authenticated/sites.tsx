@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff } from "lucide-react";
+import { ReglesMotDePasse } from "@/components/regles-mot-de-passe";
+import { erreurMotDePasse } from "@/lib/mot-de-passe";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -148,8 +150,9 @@ function Sites() {
       setErreur("Renseignez l'e-mail de l'accueil pour lui attribuer ce mot de passe.");
       return;
     }
-    if (motDePasse && motDePasse.length < 8) {
-      setErreur("Le mot de passe doit contenir au moins 8 caractères.");
+    const erreurMdp = motDePasse ? erreurMotDePasse(motDePasse) : null;
+    if (erreurMdp) {
+      setErreur(erreurMdp);
       return;
     }
     try {
@@ -171,11 +174,17 @@ function Sites() {
         setCopie(false);
         setMdpAffiche({ email: mail, motDePasse });
       }
+      const confirmation = site.id
+        ? `Le site ${site.nom} a été mis à jour avec succès.`
+        : `Le site ${site.nom} a été ajouté avec succès.`;
+      setMessage((m) => (m ? `${confirmation} ${m}` : confirmation));
       setForm(vide);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       queryClient.invalidateQueries({ queryKey: ["sites"] });
       queryClient.invalidateQueries({ queryKey: ["comptes"] });
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Le site n'a pas pu être enregistré.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -183,6 +192,11 @@ function Sites() {
     e.preventDefault();
     if (!saisieMdp) return;
     setErreur(null);
+    const erreurMdp = erreurMotDePasse(saisieMdp.motDePasse);
+    if (erreurMdp) {
+      setErreur(erreurMdp);
+      return;
+    }
     setOccupe(saisieMdp.userId);
     try {
       await definirMdp({ data: { userId: saisieMdp.userId, motDePasse: saisieMdp.motDePasse } });
@@ -242,8 +256,19 @@ function Sites() {
         définissez le mot de passe de l'accès ou envoyez-lui un lien.
       </p>
       {message && (
-        <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm text-foreground"
+        >
           {message}
+        </p>
+      )}
+      {erreur && (
+        <p
+          role="alert"
+          className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {erreur}
         </p>
       )}
       {mdpAffiche && (
@@ -294,10 +319,9 @@ function Sites() {
             <input
               aria-label="Nouveau mot de passe"
               autoFocus
-              placeholder="Saisissez le mot de passe (8 caractères min.)"
+              placeholder="Saisissez le mot de passe"
               type={voirMdp ? "text" : "password"}
               required
-              minLength={8}
               maxLength={72}
               value={saisieMdp.motDePasse}
               onChange={(e) => setSaisieMdp({ ...saisieMdp, motDePasse: e.target.value })}
@@ -324,6 +348,7 @@ function Sites() {
               Suggérer
             </button>
           </div>
+          <ReglesMotDePasse valeur={saisieMdp.motDePasse} className="mt-2" />
           <div className="mt-3 flex gap-2">
             <button
               disabled={occupe === saisieMdp.userId}
@@ -338,9 +363,32 @@ function Sites() {
         </form>
       )}
 
+      {form.id && (
+        <div
+          role="status"
+          className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/5 px-5 py-3"
+        >
+          <p className="text-sm font-semibold text-foreground">
+            Modification du site : {(sites ?? []).find((x) => x.id === form.id)?.nom ?? form.nom}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setForm(vide);
+              setErreur(null);
+            }}
+            className={petitBouton}
+          >
+            Annuler
+          </button>
+        </div>
+      )}
       <form
+        id="formulaire-site"
         onSubmit={onSubmit}
-        className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2"
+        className={`grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2 ${
+          form.id ? "mt-3 border-primary/40" : "mt-6 border-border"
+        }`}
       >
         <div>
           <label className="text-xs font-medium text-muted-foreground">Nom du site</label>
@@ -361,20 +409,20 @@ function Sites() {
             onChange={set("emailAccueil")}
             placeholder="accueil@nova-serenity.fr"
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ne peut pas être l'adresse d'un compte super admin existant.
+          </p>
         </div>
         <div className="sm:col-span-2">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="site-mdp">
             Mot de passe de l'accès{" "}
-            {form.id
-              ? "(laisser vide pour ne pas le changer)"
-              : "(optionnel, 8 caractères minimum)"}
+            {form.id ? "(laisser vide pour ne pas le changer)" : "(optionnel)"}
           </label>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <input
               id="site-mdp"
               className="w-64 rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40"
               type={voirMdp ? "text" : "password"}
-              minLength={8}
               maxLength={72}
               value={form.motDePasse}
               onChange={set("motDePasse")}
@@ -403,6 +451,7 @@ function Sites() {
               Suggérer
             </button>
           </div>
+          {form.motDePasse && <ReglesMotDePasse valeur={form.motDePasse} className="mt-2" />}
         </div>
         <div className="sm:col-span-2">
           <label className="text-xs font-medium text-muted-foreground">Adresse</label>
@@ -462,8 +511,6 @@ function Sites() {
             )}
           </div>
         </div>
-
-        {erreur && <p className="text-sm text-destructive sm:col-span-2">{erreur}</p>}
 
         <div className="flex gap-2 sm:col-span-2">
           <button className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
@@ -600,7 +647,10 @@ function Sites() {
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      setMessage(null);
+                      setErreur(null);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
                       setForm({
                         id: s.id,
                         nom: s.nom,
@@ -611,8 +661,8 @@ function Sites() {
                         emailAccueil: s.email_accueil ?? "",
                         motDePasse: "",
                         logoUrl: s.logo_url ?? null,
-                      })
-                    }
+                      });
+                    }}
                     className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-accent"
                   >
                     Modifier

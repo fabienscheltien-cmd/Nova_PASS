@@ -97,7 +97,7 @@ function Affiche() {
             Bienvenue chez {site?.nom ?? "Nova Serenity"}
           </h1>
 
-          <div className="mt-[12mm] rounded-2xl border border-hero-line bg-qr-surface p-6 shadow-2xl">
+          <div className="mt-[12mm] overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
             {url ? (
               <SiteQr value={url} logoUrl={site?.logo_url} size={330} />
             ) : (
