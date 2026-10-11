@@ -138,6 +138,24 @@ export function maintenantLocal() {
 }
 
 /** Export Excel ou CSV (formules neutralisées dans le CSV). */
+/** Lance le téléchargement d'un fichier généré dans le navigateur. */
+function telecharger(blob: Blob, nomFichier: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomFichier;
+  // Firefox exige un lien présent dans la page ; l'URL est libérée après coup
+  // pour ne pas interrompre le téléchargement (Firefox, Safari).
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/**
+ * Export Excel (.xlsx) ou CSV pour Excel français : séparateur « ; », encodage
+ * UTF-8 avec BOM (accents corrects) et formules neutralisées.
+ */
 export async function exporter(
   lignes: Record<string, string>[],
   nom: string,
@@ -148,19 +166,20 @@ export async function exporter(
   if (format === "xlsx") {
     const classeur = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(classeur, XLSX.utils.json_to_sheet(lignes), "Registre");
-    XLSX.writeFile(classeur, `${fichier}.xlsx`);
+    const contenu = XLSX.write(classeur, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+    telecharger(
+      new Blob([contenu], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      `${fichier}.xlsx`,
+    );
     return;
   }
   const surs = lignes.map((l) =>
     Object.fromEntries(Object.entries(l).map(([k, v]) => [k, neutraliserFormule(v)])),
   );
-  const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(surs));
-  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${fichier}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(surs), { FS: ";" });
+  telecharger(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), `${fichier}.csv`);
 }
 
 export type Filtres = {
@@ -282,27 +301,45 @@ function DateHeure({
 
 export function BoutonsExport({
   onExport,
-  desactive,
+  nombre,
 }: {
-  onExport: (f: "xlsx" | "csv") => void;
-  desactive: boolean;
+  onExport: (f: "xlsx" | "csv") => Promise<unknown> | void;
+  nombre: number;
 }) {
+  const [info, setInfo] = useState<string | null>(null);
+  async function lancer(format: "xlsx" | "csv") {
+    if (nombre === 0) {
+      setInfo("Aucune ligne à exporter avec les filtres actuels.");
+      return;
+    }
+    setInfo(null);
+    try {
+      await onExport(format);
+    } catch (err) {
+      setInfo(`L'export n'a pas pu être généré${err instanceof Error ? ` : ${err.message}` : "."}`);
+    }
+  }
   return (
-    <div className="flex gap-2">
-      <button
-        onClick={() => onExport("xlsx")}
-        disabled={desactive}
-        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-      >
-        Export Excel
-      </button>
-      <button
-        onClick={() => onExport("csv")}
-        disabled={desactive}
-        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
-      >
-        Export CSV
-      </button>
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex gap-2">
+        <button
+          onClick={() => lancer("xlsx")}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Export Excel
+        </button>
+        <button
+          onClick={() => lancer("csv")}
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+        >
+          Export CSV
+        </button>
+      </div>
+      {info && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {info}
+        </p>
+      )}
     </div>
   );
 }
@@ -520,7 +557,7 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
           {lignes.length} objet{lignes.length > 1 ? "s" : ""} trouvé{lignes.length > 1 ? "s" : ""}
         </p>
         <BoutonsExport
-          desactive={lignes.length === 0}
+          nombre={lignes.length}
           onExport={(f) =>
             exporter(
               lignes.map((o) => ({
@@ -690,7 +727,7 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
           {lignes.length} entrée{lignes.length > 1 ? "s" : ""}
         </p>
         <BoutonsExport
-          desactive={lignes.length === 0}
+          nombre={lignes.length}
           onExport={(f) =>
             exporter(
               lignes.map((d) => ({

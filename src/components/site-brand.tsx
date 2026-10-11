@@ -17,21 +17,17 @@ export function SiteBrand({
 }) {
   if (logoUrl) {
     return format === "affiche" ? (
-      <span className="flex items-center justify-center rounded-2xl bg-qr-surface px-[8mm] py-[5mm] shadow-2xl ring-1 ring-black/5">
-        <img
-          src={logoUrl}
-          alt={nom ?? "Logo du site"}
-          className="h-[24mm] w-auto max-w-[110mm] object-contain"
-        />
-      </span>
+      <img
+        src={logoUrl}
+        alt={nom ?? "Logo du site"}
+        className="h-[28mm] w-auto max-w-[120mm] rounded-2xl border border-hero-line object-contain shadow-2xl"
+      />
     ) : (
-      <span className="flex items-center justify-center rounded-xl bg-qr-surface px-4 py-2 shadow-lg ring-1 ring-black/5">
-        <img
-          src={logoUrl}
-          alt={nom ?? "Logo du site"}
-          className="h-12 w-auto max-w-[220px] object-contain sm:h-16 sm:max-w-[300px]"
-        />
-      </span>
+      <img
+        src={logoUrl}
+        alt={nom ?? "Logo du site"}
+        className="h-14 w-auto max-w-[240px] rounded-2xl border border-hero-line object-contain shadow-2xl sm:h-[4.5rem] sm:max-w-[320px]"
+      />
     );
   }
   if (format === "affiche") {
@@ -91,7 +87,7 @@ export function SiteQr({
     value,
     size,
     level: "H" as const,
-    marginSize: 2,
+    marginSize: 3,
     imageSettings: {
       src,
       width: box.w,
@@ -109,5 +105,12 @@ export function SiteQr({
       />
     );
   }
-  return <QRCodeSVG {...common} fgColor="var(--qr-foreground)" bgColor="var(--qr-background)" />;
+  return (
+    <QRCodeSVG
+      {...common}
+      fgColor="var(--qr-foreground)"
+      bgColor="var(--qr-background)"
+      style={{ display: "block" }}
+    />
+  );
 }

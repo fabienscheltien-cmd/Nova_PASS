@@ -114,7 +114,7 @@ function Index() {
               Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
             </p>
 
-            <div className="mt-7 inline-flex rounded-xl border border-hero-line bg-qr-surface p-4 shadow-2xl sm:p-5">
+            <div className="mt-7 inline-flex overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
               {url ? (
                 <div aria-label="QR code vers le formulaire visiteur">
                   <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />

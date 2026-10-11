@@ -204,7 +204,7 @@ function Visiteurs() {
           {visites.length > 1 ? "s" : ""}
         </p>
         <BoutonsExport
-          desactive={visites.length === 0}
+          nombre={visites.length}
           onExport={(f) => exporter(lignesExport(), "registre-visiteurs", f)}
         />
       </div>

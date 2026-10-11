@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ReglesMotDePasse } from "@/components/regles-mot-de-passe";
+import { erreurMotDePasse } from "@/lib/mot-de-passe";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -118,6 +120,11 @@ function ResetPassword() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
+    const erreurRegles = erreurMotDePasse(mdp);
+    if (erreurRegles) {
+      setErreur(erreurRegles);
+      return;
+    }
     if (mdp !== confirmation) {
       setErreur("Les deux mots de passe ne sont pas identiques.");
       return;
@@ -207,18 +214,18 @@ function ResetPassword() {
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground" htmlFor="mdp">
-                  Mot de passe (8 caractères minimum)
+                  Mot de passe
                 </label>
                 <input
                   id="mdp"
                   type={voir ? "text" : "password"}
                   required
-                  minLength={8}
                   value={mdp}
                   onChange={(e) => setMdp(e.target.value)}
                   className={champClass}
                   autoComplete="new-password"
                 />
+                <ReglesMotDePasse valeur={mdp} className="mt-2" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground" htmlFor="mdp2">
@@ -228,7 +235,6 @@ function ResetPassword() {
                   id="mdp2"
                   type={voir ? "text" : "password"}
                   required
-                  minLength={8}
                   value={confirmation}
                   onChange={(e) => setConfirmation(e.target.value)}
                   className={champClass}

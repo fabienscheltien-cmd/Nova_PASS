@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { erreurMotDePasse } from "@/lib/mot-de-passe";
 
 async function exigerSuperAdmin(context: { supabase: any; userId: string }) {
   const { data, error } = await context.supabase
@@ -29,6 +30,15 @@ async function refuserSiSuperAdmin(userId: string) {
     );
   }
 }
+
+/** Mot de passe choisi par la super admin : mêmes règles qu'à l'écran. */
+const mdpValide = z
+  .string()
+  .max(72)
+  .superRefine((m, ctx) => {
+    const erreur = erreurMotDePasse(m);
+    if (erreur) ctx.addIssue({ code: z.ZodIssueCode.custom, message: erreur });
+  });
 
 const siteSchema = z.object({
   id: z.string().uuid().optional(),
@@ -116,7 +126,7 @@ export const creerCompte = createServerFn({ method: "POST" })
     z
       .object({
         email: z.string().trim().email().max(255),
-        motDePasse: z.string().min(8).max(72),
+        motDePasse: mdpValide,
         siteId: z.string().uuid(),
         superAdmin: z.boolean().default(false),
       })
@@ -157,7 +167,7 @@ export const modifierCompte = createServerFn({ method: "POST" })
       .object({
         userId: z.string().uuid(),
         siteId: z.string().uuid().nullable().optional(),
-        motDePasse: z.string().min(8).max(72).optional(),
+        motDePasse: mdpValide.optional(),
       })
       .parse(data),
   )
@@ -239,7 +249,7 @@ export const inviterCompte = createServerFn({ method: "POST" })
       .object({
         email: z.string().trim().email().max(255),
         siteId: z.string().uuid(),
-        motDePasse: z.string().min(8).max(72).optional(),
+        motDePasse: mdpValide.optional(),
       })
       .parse(data),
   )
