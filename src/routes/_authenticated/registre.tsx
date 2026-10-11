@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
+import { AssistantRegistre } from "@/components/assistant-registre";
 import {
   AjoutVisiteur,
   BarreFiltres,
@@ -57,6 +58,7 @@ function Registre() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Registre</h1>
+      <AssistantRegistre />
       <nav
         className="mt-4 flex flex-wrap gap-1 border-b border-border"
         aria-label="Rubriques du registre"

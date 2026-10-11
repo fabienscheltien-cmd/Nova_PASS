@@ -39,23 +39,35 @@ function Index() {
   const [origine, setOrigine] = useState("");
   const [siteId, setSiteId] = useState(siteParam ?? "");
   const chargerSites = useServerFn(listerSitesPublics);
-  const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
+  const { data: sites, isError: sitesIndisponibles } = useQuery({
+    queryKey: ["sitesPublics"],
+    queryFn: () => chargerSites(),
+  });
 
   const chargerProfil = useServerFn(monProfil);
   const [siteConnecte, setSiteConnecte] = useState<string | null>(null);
+  // Vrai tant qu'on ne sait pas si un compte de site est connecté (évite
+  // d'afficher le QR par défaut une fraction de seconde avant celui du site).
+  const [sessionEnCours, setSessionEnCours] = useState(true);
 
   useEffect(() => {
     setOrigine(window.location.origin);
     // Si une hôtesse est connectée, l'écran affiche automatiquement son site.
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) return;
-      try {
-        const p = await chargerProfil();
-        if (p.siteId) setSiteConnecte(p.siteId);
-      } catch {
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!data.session) return;
+        try {
+          const p = await chargerProfil();
+          if (p.siteId) setSiteConnecte(p.siteId);
+        } catch {
+          /* ignoré */
+        }
+      })
+      .catch(() => {
         /* ignoré */
-      }
-    });
+      })
+      .finally(() => setSessionEnCours(false));
   }, [chargerProfil]);
 
   useEffect(() => {
@@ -67,9 +79,20 @@ function Index() {
     if (!sites.some((s) => s.id === siteId)) setSiteId("");
   }, [sites, siteId]);
 
-  const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
-  // Un QR code = un site : pas de QR générique sans site.
-  const url = origine && siteActif ? `${origine}/checkin?site=${siteActif.id}` : "";
+  // Le site du compte connecté s'applique dès qu'il est connu (sans attendre l'effet ci-dessus).
+  const siteVoulu = siteId || (!siteParam && siteConnecte) || "";
+  const siteActif = (sites ?? []).find((s) => s.id === siteVoulu) ?? null;
+  // Site demandé (lien ou compte connecté) dont la liste n'est pas encore arrivée.
+  const siteEnAttente =
+    (siteVoulu !== "" && sites === undefined && !sitesIndisponibles) ||
+    (!siteParam && sessionEnCours);
+  // QR du site s'il est connu ; sinon QR par défaut vers le formulaire visiteur.
+  const url =
+    !origine || siteEnAttente
+      ? ""
+      : siteActif
+        ? `${origine}/checkin?site=${siteActif.id}`
+        : `${origine}/checkin`;
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
@@ -117,15 +140,14 @@ function Index() {
             <div className="mt-7 inline-flex overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
               {url ? (
                 <div aria-label="QR code vers le formulaire visiteur">
-                  <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />
+                  <SiteQr
+                    value={url}
+                    logoUrl={siteActif ? siteActif.logo_url : novaSerenityLogo.url}
+                    size={244}
+                  />
                 </div>
-              ) : sites && !siteActif ? (
-                <p className="flex h-[244px] w-[244px] items-center p-4 text-center text-sm text-foreground">
-                  Ouvrez cet écran depuis « Sites et accès » → « Écran d'accueil du site » pour
-                  afficher le QR code du site.
-                </p>
               ) : (
-                <div className="h-[244px] w-[244px] animate-pulse rounded-md bg-muted" />
+                <div className="h-[244px] w-[244px] bg-white" aria-hidden="true" />
               )}
             </div>
 
@@ -133,7 +155,7 @@ function Index() {
               Pas de téléphone ?{" "}
               <Link
                 to="/checkin"
-                search={{ site: siteId || undefined }}
+                search={{ site: siteActif?.id }}
                 className="font-semibold text-hero-foreground underline decoration-pass underline-offset-4"
               >
                 Remplir le formulaire ici

@@ -46,7 +46,9 @@ function Checkin() {
   const { site: siteParam } = Route.useSearch();
   const { data: sites } = useQuery({ queryKey: ["sitesPublics"], queryFn: () => chargerSites() });
 
-  const siteId = siteParam ?? "";
+  // Lien sans site (QR par défaut de l'écran d'accueil) : le visiteur choisit son site.
+  const [siteChoisi, setSiteChoisi] = useState("");
+  const siteId = siteParam ?? siteChoisi;
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -58,10 +60,10 @@ function Checkin() {
   const [etat, setEtat] = useState<"saisie" | "envoi" | "ok">("saisie");
   const [erreur, setErreur] = useState<string | null>(null);
 
-  // Un QR code = un site : sans site valide dans le lien, aucun site n'est
-  // choisi à la place du visiteur (sinon il serait enregistré au mauvais endroit).
+  // Un QR code de site = un site : un lien vers un site inconnu n'est jamais
+  // remplacé par un autre site (le visiteur serait enregistré au mauvais endroit).
   const siteActif = (sites ?? []).find((s) => s.id === siteId) ?? null;
-  const siteInconnu = sites !== undefined && !siteActif;
+  const siteInconnu = siteParam !== undefined && sites !== undefined && !siteActif;
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -170,7 +172,31 @@ function Checkin() {
               </p>
             ) : (
               <form onSubmit={onSubmit} className="mt-6 space-y-5">
-                {siteActif && (
+                {siteParam === undefined && (
+                  <div>
+                    <label className={labelClass} htmlFor="site">
+                      Site où vous vous présentez
+                    </label>
+                    <select
+                      id="site"
+                      className={inputClass}
+                      value={siteChoisi}
+                      onChange={(e) => setSiteChoisi(e.target.value)}
+                      required
+                    >
+                      <option value="" className="bg-background text-foreground">
+                        Choisissez le site…
+                      </option>
+                      {(sites ?? []).map((s) => (
+                        <option key={s.id} value={s.id} className="bg-background text-foreground">
+                          {[s.nom, s.ville].filter(Boolean).join(" — ")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {siteActif && siteParam !== undefined && (
                   <div className="rounded-lg border border-hero-line bg-hero-surface px-3 py-2.5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-pass-pastel">
                       Site
