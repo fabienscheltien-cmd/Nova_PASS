@@ -6,6 +6,7 @@ import { listerSites, monProfil } from "@/lib/visites.functions";
 import { SiteBrand, SiteQr } from "@/components/site-brand";
 import { useSiteAnalyse } from "@/lib/site-analyse";
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
+import novaLogo from "@/assets/nova-logo.png.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/affiche")({
@@ -55,22 +56,70 @@ function Affiche() {
     : (profil?.siteId ?? undefined);
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
   const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
+  const [generation, setGeneration] = useState(false);
+  const [erreurPptx, setErreurPptx] = useState<string | null>(null);
+
+  async function exporterPptx() {
+    if (!site) return;
+    setErreurPptx(null);
+    setGeneration(true);
+    try {
+      const canvas = document.getElementById("qr-affiche-pptx") as HTMLCanvasElement | null;
+      if (!canvas) throw new Error("QR code indisponible");
+      const { telechargerAffichePptx } = await import("@/lib/affiche-pptx");
+      await telechargerAffichePptx({
+        nomSite: site.nom,
+        qrDataUrl: canvas.toDataURL("image/png"),
+        logoSiteUrl: site.logo_url ?? null,
+        logoNovaUrl: novaLogo.url,
+        fondUrl: novaReception.url,
+      });
+    } catch (err) {
+      setErreurPptx(
+        `Le fichier PowerPoint n'a pas pu être généré${err instanceof Error ? ` : ${err.message}` : "."}`,
+      );
+    } finally {
+      setGeneration(false);
+    }
+  }
 
   return (
     <div className="bg-muted/40 py-6 print:bg-transparent print:py-0">
       <style>{printCss}</style>
       <div className="no-print mx-auto mb-5 flex max-w-[210mm] flex-wrap items-center justify-between gap-3 px-4">
         <p className="text-sm text-muted-foreground">
-          Choisissez « Enregistrer au format PDF », format A4 portrait, marges « Aucune ».
+          Affiche A4 modifiable dans PowerPoint, Keynote ou Google Slides.
         </p>
-        <button
-          onClick={() => window.print()}
-          disabled={!url}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          Télécharger en PDF / Imprimer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exporterPptx}
+            disabled={!url || generation}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {generation ? "Génération…" : "Télécharger en PowerPoint (.pptx)"}
+          </button>
+          <button
+            onClick={() => window.print()}
+            disabled={!url}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+          >
+            Imprimer
+          </button>
+        </div>
       </div>
+      {erreurPptx && (
+        <p
+          role="alert"
+          className="no-print mx-auto mb-4 max-w-[210mm] px-4 text-sm text-destructive"
+        >
+          {erreurPptx}
+        </p>
+      )}
+      {url && (
+        <div className="hidden" aria-hidden="true">
+          <SiteQr canvasId="qr-affiche-pptx" value={url} logoUrl={site?.logo_url} size={1024} />
+        </div>
+      )}
 
       <div className="affiche-a4 relative isolate mx-auto flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-foreground shadow-2xl">
         <img
