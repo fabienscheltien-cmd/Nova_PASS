@@ -14,7 +14,7 @@ export const interrogerRegistre = createServerFn({ method: "POST" })
     z.object({ question: z.string().trim().min(3).max(500) }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { ok: false as const, erreur: "Assistant non configuré." };
 
     const { data: visites, error } = await context.supabase
