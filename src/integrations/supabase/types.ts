@@ -14,6 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
+      courriers_colis: {
+        Row: {
+          categorie: Database["public"]["Enums"]["categorie_depot"]
+          created_at: string
+          cree_par: string | null
+          description: string
+          destinataire: string
+          expediteur: string
+          id: string
+          recu_at: string
+          site_id: string | null
+          statut: string
+          statut_at: string | null
+          statut_par: string | null
+        }
+        Insert: {
+          categorie: Database["public"]["Enums"]["categorie_depot"]
+          created_at?: string
+          cree_par?: string | null
+          description?: string
+          destinataire: string
+          expediteur?: string
+          id?: string
+          recu_at?: string
+          site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
+        }
+        Update: {
+          categorie?: Database["public"]["Enums"]["categorie_depot"]
+          created_at?: string
+          cree_par?: string | null
+          description?: string
+          destinataire?: string
+          expediteur?: string
+          id?: string
+          recu_at?: string
+          site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courriers_colis_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objets_trouves: {
+        Row: {
+          created_at: string
+          cree_par: string | null
+          emplacement: string
+          id: string
+          objet: string
+          observation: string
+          site_id: string | null
+          statut: string
+          statut_at: string | null
+          statut_par: string | null
+          trouve_at: string
+        }
+        Insert: {
+          created_at?: string
+          cree_par?: string | null
+          emplacement?: string
+          id?: string
+          objet: string
+          observation?: string
+          site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
+          trouve_at?: string
+        }
+        Update: {
+          created_at?: string
+          cree_par?: string | null
+          emplacement?: string
+          id?: string
+          objet?: string
+          observation?: string
+          site_id?: string | null
+          statut?: string
+          statut_at?: string | null
+          statut_par?: string | null
+          trouve_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objets_trouves_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profils: {
         Row: {
           created_at: string
@@ -128,34 +231,40 @@ export type Database = {
         Row: {
           arrivee_at: string
           created_at: string
+          cree_par: string | null
           entreprise: string
           entreprise_visitee: string
           id: string
           nom: string
           personne_visitee: string
           prenom: string
+          saisie_manuelle: boolean
           site_id: string | null
         }
         Insert: {
           arrivee_at?: string
           created_at?: string
+          cree_par?: string | null
           entreprise: string
           entreprise_visitee: string
           id?: string
           nom: string
           personne_visitee: string
           prenom: string
+          saisie_manuelle?: boolean
           site_id?: string | null
         }
         Update: {
           arrivee_at?: string
           created_at?: string
+          cree_par?: string | null
           entreprise?: string
           entreprise_visitee?: string
           id?: string
           nom?: string
           personne_visitee?: string
           prenom?: string
+          saisie_manuelle?: boolean
           site_id?: string | null
         }
         Relationships: [
@@ -184,6 +293,7 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "hotesse"
+      categorie_depot: "courrier" | "colis" | "cles" | "autre"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -312,6 +422,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "hotesse"],
+      categorie_depot: ["courrier", "colis", "cles", "autre"],
     },
   },
 } as const
