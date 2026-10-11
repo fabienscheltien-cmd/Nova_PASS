@@ -38,7 +38,7 @@ useradd --system --create-home --home-dir /opt/nova-pass novapass
 sudo -u novapass git clone https://github.com/fabienscheltien-cmd/Nova_PASS.git /opt/nova-pass
 
 cp /opt/nova-pass/deploy/ovh/env.production.example /opt/nova-pass/.env.production
-nano /opt/nova-pass/.env.production          # renseigner Supabase et SMTP
+nano /opt/nova-pass/.env.production          # renseigner Supabase, SMTP et VITE_URL_PUBLIQUE
 chown novapass /opt/nova-pass/.env.production && chmod 600 /opt/nova-pass/.env.production
 
 cd /opt/nova-pass && sudo -u novapass npm install --no-audit --no-fund --no-save \

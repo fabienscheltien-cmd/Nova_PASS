@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { listerSites, monProfil } from "@/lib/visites.functions";
 import { SiteBrand, SiteQr } from "@/components/site-brand";
 import { useSiteAnalyse } from "@/lib/site-analyse";
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaLogo from "@/assets/nova-logo.png.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
+import { urlCheckin } from "@/lib/config";
 
 export const Route = createFileRoute("/_authenticated/affiche")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
@@ -44,8 +45,6 @@ function Affiche() {
   const chargerProfil = useServerFn(monProfil);
   const { data: sites } = useQuery({ queryKey: ["sites"], queryFn: () => chargerSites() });
   const { data: profil } = useQuery({ queryKey: ["monProfil"], queryFn: () => chargerProfil() });
-  const [origine, setOrigine] = useState("");
-  useEffect(() => setOrigine(window.location.origin), []);
 
   // Une hôtesse n'imprime que l'affiche de son propre site.
   const siteAnalyse = useSiteAnalyse();
@@ -55,7 +54,7 @@ function Affiche() {
     ? (siteParam ?? (siteAnalyse || undefined) ?? sites?.[0]?.id)
     : (profil?.siteId ?? undefined);
   const site = (sites ?? []).find((s) => s.id === siteId) ?? null;
-  const url = origine && site ? `${origine}/checkin?site=${site.id}` : "";
+  const url = site ? urlCheckin(site.id) : "";
   const [generation, setGeneration] = useState(false);
   const [erreurPptx, setErreurPptx] = useState<string | null>(null);
 

@@ -4,7 +4,7 @@ import { ReglesMotDePasse } from "@/components/regles-mot-de-passe";
 import { erreurMotDePasse } from "@/lib/mot-de-passe";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SiteQr } from "@/components/site-brand";
 import { listerSites } from "@/lib/visites.functions";
 import {
@@ -16,6 +16,7 @@ import {
   envoyerLienMotDePasse,
   supprimerCompte,
 } from "@/lib/admin.functions";
+import { urlCheckin } from "@/lib/config";
 
 const petitBouton =
   "rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent disabled:opacity-50";
@@ -97,8 +98,6 @@ function Sites() {
   const [voirMdp, setVoirMdp] = useState(true);
 
   const [form, setForm] = useState(vide);
-  const [origine, setOrigine] = useState("");
-  useEffect(() => setOrigine(window.location.origin), []);
 
   function telechargerQr(id: string, nom: string) {
     const canvas = document.getElementById(`qr-${id}`) as HTMLCanvasElement | null;
@@ -612,38 +611,36 @@ function Sites() {
                   })()}
                 </td>
                 <td className="px-4 py-3">
-                  {origine && (
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-md bg-qr-surface p-1">
-                        <SiteQr
-                          canvasId={`qr-${s.id}`}
-                          value={`${origine}/checkin?site=${s.id}`}
-                          logoUrl={s.logo_url}
-                          size={512}
-                          displaySize={64}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 text-xs">
-                        <button
-                          onClick={() => telechargerQr(s.id, s.nom)}
-                          className="text-left text-primary hover:underline"
-                        >
-                          Télécharger (PNG)
-                        </button>
-                        <a
-                          href={`/?site=${s.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          Écran d'accueil du site
-                        </a>
-                        <a href={`/affiche?site=${s.id}`} className="text-primary hover:underline">
-                          Affiche PDF
-                        </a>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-md bg-qr-surface p-1">
+                      <SiteQr
+                        canvasId={`qr-${s.id}`}
+                        value={urlCheckin(s.id)}
+                        logoUrl={s.logo_url}
+                        size={512}
+                        displaySize={64}
+                      />
                     </div>
-                  )}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <button
+                        onClick={() => telechargerQr(s.id, s.nom)}
+                        className="text-left text-primary hover:underline"
+                      >
+                        Télécharger (PNG)
+                      </button>
+                      <a
+                        href={`/?site=${s.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Écran d'accueil du site
+                      </a>
+                      <a href={`/affiche?site=${s.id}`} className="text-primary hover:underline">
+                        Affiche PDF
+                      </a>
+                    </div>
+                  </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   <button
