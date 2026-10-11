@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { choisirSiteAnalyse } from "@/lib/site-analyse";
+import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -69,7 +70,19 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Espace accueil</h1>
+        <Link
+          to="/"
+          title="Retour à l'accueil Nova Pass"
+          aria-label="Retour à l'accueil Nova Pass"
+          className="inline-block rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <img
+            src={novaSerenityLogo.url}
+            alt="Nova Serenity"
+            className="h-12 w-auto object-contain"
+          />
+        </Link>
+        <h1 className="mt-8 text-2xl font-semibold tracking-tight text-foreground">Espace accueil</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {mode === "connexion"
             ? "Connectez-vous pour consulter le registre."
