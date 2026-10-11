@@ -17,8 +17,8 @@ export type Database = {
       courriers_colis: {
         Row: {
           categorie: Database["public"]["Enums"]["categorie_depot"]
-          cree_par: string | null
           created_at: string
+          cree_par: string | null
           description: string
           destinataire: string
           expediteur: string
@@ -31,8 +31,8 @@ export type Database = {
         }
         Insert: {
           categorie: Database["public"]["Enums"]["categorie_depot"]
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           description?: string
           destinataire: string
           expediteur?: string
@@ -45,8 +45,8 @@ export type Database = {
         }
         Update: {
           categorie?: Database["public"]["Enums"]["categorie_depot"]
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           description?: string
           destinataire?: string
           expediteur?: string
@@ -69,43 +69,43 @@ export type Database = {
       }
       objets_trouves: {
         Row: {
-          cree_par: string | null
           created_at: string
+          cree_par: string | null
           emplacement: string
           id: string
           objet: string
           observation: string
           site_id: string | null
-          trouve_at: string
           statut: string
           statut_at: string | null
           statut_par: string | null
+          trouve_at: string
         }
         Insert: {
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           emplacement?: string
           id?: string
           objet: string
           observation?: string
           site_id?: string | null
-          trouve_at?: string
           statut?: string
           statut_at?: string | null
           statut_par?: string | null
+          trouve_at?: string
         }
         Update: {
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           emplacement?: string
           id?: string
           objet?: string
           observation?: string
           site_id?: string | null
-          trouve_at?: string
           statut?: string
           statut_at?: string | null
           statut_par?: string | null
+          trouve_at?: string
         }
         Relationships: [
           {
@@ -230,8 +230,8 @@ export type Database = {
       visites: {
         Row: {
           arrivee_at: string
-          cree_par: string | null
           created_at: string
+          cree_par: string | null
           entreprise: string
           entreprise_visitee: string
           id: string
@@ -243,8 +243,8 @@ export type Database = {
         }
         Insert: {
           arrivee_at?: string
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           entreprise: string
           entreprise_visitee: string
           id?: string
@@ -256,8 +256,8 @@ export type Database = {
         }
         Update: {
           arrivee_at?: string
-          cree_par?: string | null
           created_at?: string
+          cree_par?: string | null
           entreprise?: string
           entreprise_visitee?: string
           id?: string
