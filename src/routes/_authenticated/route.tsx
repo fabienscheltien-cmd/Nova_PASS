@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { listerSites, monProfil } from "@/lib/visites.functions";
 import { choisirSiteAnalyse, useSiteAnalyse } from "@/lib/site-analyse";
+import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -48,8 +49,17 @@ function Layout() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-          <Link to="/" className="text-sm font-semibold tracking-tight text-foreground">
-            Nova Pass
+          <Link
+            to="/"
+            title="Retour à l'accueil Nova Pass"
+            aria-label="Retour à l'accueil Nova Pass"
+            className="shrink-0 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <img
+              src={novaSerenityLogo.url}
+              alt="Nova Serenity"
+              className="h-9 w-auto object-contain sm:h-10"
+            />
           </Link>
           <nav className="flex gap-4 text-sm">
             <Link
