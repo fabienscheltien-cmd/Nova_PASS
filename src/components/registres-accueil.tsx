@@ -30,9 +30,9 @@ export type Site = { id: string; nom: string };
 
 export const LIBELLES_STATUT = {
   en_attente: "En attente",
-  restitue: "Restitué",
+  restitue: "Récupéré",
   recu: "Reçu",
-  remis: "Remis",
+  remis: "Transmis",
 } as const;
 type CleStatut = keyof typeof LIBELLES_STATUT;
 
@@ -72,13 +72,20 @@ function Statut({
   libelle,
   final,
   depuis,
+  nom,
   action,
 }: {
   libelle: string;
   final: boolean;
   depuis: string | null;
+  nom?: string | null;
   action?:
-    | { libelle: string; confirmation: string; executer: () => Promise<unknown>; cles: string[][] }
+    | {
+        libelle: string;
+        question: string;
+        executer: (nom: string) => Promise<unknown>;
+        cles: string[][];
+      }
     | undefined;
 }) {
   const queryClient = useQueryClient();
@@ -95,14 +102,16 @@ function Statut({
       {final && depuis && (
         <span className="text-[11px] text-muted-foreground">{formatFr(depuis)}</span>
       )}
+      {final && nom && <span className="text-[11px] text-foreground">par {nom}</span>}
       {action && (
         <button
           disabled={envoi}
           onClick={async () => {
-            if (!confirm(action.confirmation)) return;
+            const saisi = prompt(action.question)?.trim();
+            if (!saisi) return;
             setEnvoi(true);
             try {
-              await action.executer();
+              await action.executer(saisi);
               for (const cle of action.cles) await queryClient.invalidateQueries({ queryKey: cle });
             } catch (err) {
               alert(err instanceof Error ? err.message : "Action impossible.");
@@ -568,6 +577,7 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
                 Observation: o.observation,
                 Statut: LIBELLES_STATUT[o.statut],
                 "Date du statut": o.statut_at ? formatFr(o.statut_at) : "",
+                "Récupéré par": o.statut_nom ?? "",
               })),
               "objets-trouves",
               f,
@@ -668,12 +678,13 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
               libelle={LIBELLES_STATUT[o.statut]}
               final={o.statut === "restitue"}
               depuis={o.statut_at}
+              nom={o.statut_nom}
               action={
                 peutAjouter(profil) && o.statut === "en_attente"
                   ? {
-                      libelle: "Marquer restitué",
-                      confirmation: `Confirmer la restitution de « ${o.objet} » ? Cette action est définitive.`,
-                      executer: () => restituer({ data: { id: o.id } }),
+                      libelle: "Récupéré",
+                      question: `Nom de la personne qui récupère « ${o.objet} » (date et heure enregistrées automatiquement, action définitive) :`,
+                      executer: (nom) => restituer({ data: { id: o.id, nom } }),
                       cles: [["objets"]],
                     }
                   : undefined
@@ -739,6 +750,7 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
                 Description: d.description,
                 Statut: LIBELLES_STATUT[d.statut],
                 "Date du statut": d.statut_at ? formatFr(d.statut_at) : "",
+                "Transmis à": d.statut_nom ?? "",
               })),
               "courrier-colis-cles",
               f,
@@ -880,12 +892,13 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
               libelle={LIBELLES_STATUT[d.statut]}
               final={d.statut === "remis"}
               depuis={d.statut_at}
+              nom={d.statut_nom}
               action={
                 peutAjouter(profil) && d.statut === "recu"
                   ? {
-                      libelle: "Marquer remis",
-                      confirmation: `Confirmer la remise à ${d.destinataire} ? Cette action est définitive.`,
-                      executer: () => remettre({ data: { id: d.id } }),
+                      libelle: "Transmis",
+                      question: `Nom de la personne à qui c'est transmis (destinataire : ${d.destinataire}). Date et heure enregistrées automatiquement, action définitive :`,
+                      executer: (nom) => remettre({ data: { id: d.id, nom } }),
                       cles: [["depots"]],
                     }
                   : undefined

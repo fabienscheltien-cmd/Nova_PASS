@@ -146,6 +146,7 @@ export type ObjetTrouve = {
   observation: string;
   statut: "en_attente" | "restitue";
   statut_at: string | null;
+  statut_nom: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
@@ -161,7 +162,7 @@ export const listerObjetsTrouves = createServerFn({ method: "POST" })
         context.supabase
           .from("objets_trouves")
           .select(
-            "id, trouve_at, objet, emplacement, observation, statut, statut_at, site_id, sites(nom)",
+            "id, trouve_at, objet, emplacement, observation, statut, statut_at, statut_nom, site_id, sites(nom)",
           )
           .match(data.statut ? { statut: data.statut } : {})
           .order("trouve_at", { ascending: false })
@@ -212,6 +213,7 @@ export type Depot = {
   description: string;
   statut: "recu" | "remis";
   statut_at: string | null;
+  statut_nom: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
@@ -231,7 +233,7 @@ export const listerDepots = createServerFn({ method: "POST" })
       let q = context.supabase
         .from("courriers_colis")
         .select(
-          "id, categorie, recu_at, destinataire, expediteur, description, statut, statut_at, site_id, sites(nom)",
+          "id, categorie, recu_at, destinataire, expediteur, description, statut, statut_at, statut_nom, site_id, sites(nom)",
         )
         .order("recu_at", { ascending: false })
         .order("id")
@@ -276,7 +278,7 @@ export const ajouterDepot = createServerFn({ method: "POST" })
 /** Passe un objet trouvé à « restitué » (compte du site uniquement, une seule fois). */
 export const marquerObjetRestitue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data))
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
@@ -285,6 +287,7 @@ export const marquerObjetRestitue = createServerFn({ method: "POST" })
         statut: "restitue",
         statut_at: new Date().toISOString(),
         statut_par: context.userId,
+        statut_nom: data.nom,
       })
       .eq("id", data.id)
       .eq("statut", "en_attente")
@@ -297,12 +300,12 @@ export const marquerObjetRestitue = createServerFn({ method: "POST" })
 /** Passe un pli / colis / clé à « remis » (compte du site uniquement, une seule fois). */
 export const marquerDepotRemis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data))
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
       .from("courriers_colis")
-      .update({ statut: "remis", statut_at: new Date().toISOString(), statut_par: context.userId })
+      .update({ statut: "remis", statut_at: new Date().toISOString(), statut_par: context.userId, statut_nom: data.nom })
       .eq("id", data.id)
       .eq("statut", "recu")
       .select("id");

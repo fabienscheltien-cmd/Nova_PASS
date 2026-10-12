@@ -22,6 +22,13 @@
       "when": 1791785532305,
       "tag": "0002_depart_visiteur",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791788697712,
+      "tag": "0003_statut_nom_registres",
+      "breakpoints": true
     }
   ]
 }
