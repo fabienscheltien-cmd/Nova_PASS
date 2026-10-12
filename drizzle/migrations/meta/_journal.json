@@ -15,6 +15,13 @@
       "when": 1791729581421,
       "tag": "0001_registres_a_appliquer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791785532305,
+      "tag": "0002_depart_visiteur",
+      "breakpoints": true
     }
   ]
 }
