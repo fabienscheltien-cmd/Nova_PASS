@@ -11,6 +11,7 @@ import {
 } from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import { AssistantRegistre } from "@/components/assistant-registre";
+import { SecuriteIncendie } from "@/components/securite-incendie";
 import {
   AjoutVisiteur,
   BarreFiltres,
@@ -233,6 +234,8 @@ function Visiteurs() {
           onExport={(f) => exporter(lignesExport(), "registre-visiteurs", f)}
         />
       </div>
+
+      <SecuriteIncendie siteId={siteTravail} />
 
       <AjoutVisiteur profil={profil} />
 
