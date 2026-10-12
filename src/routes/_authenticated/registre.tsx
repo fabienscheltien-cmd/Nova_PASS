@@ -258,14 +258,14 @@ function Visiteurs() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-destructive">
+                <td colSpan={7} className="px-4 py-8 text-center text-destructive">
                   Le registre n'a pas pu être chargé.
                 </td>
               </tr>
@@ -309,7 +309,7 @@ function Visiteurs() {
               ))}
             {!isLoading && !isError && visites.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
                   Aucune visite pour ces critères.
                 </td>
               </tr>
