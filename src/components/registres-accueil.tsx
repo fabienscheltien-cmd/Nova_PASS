@@ -30,9 +30,9 @@ export type Site = { id: string; nom: string };
 
 export const LIBELLES_STATUT = {
   en_attente: "En attente",
-  restitue: "Restitué",
+  restitue: "Récupéré",
   recu: "Reçu",
-  remis: "Remis",
+  remis: "Transmis",
 } as const;
 type CleStatut = keyof typeof LIBELLES_STATUT;
 
