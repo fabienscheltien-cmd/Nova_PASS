@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
+import { toast } from "sonner";
+import {
+  listerVisites,
+  listerSites,
+  monProfil,
+  enregistrerDepart,
+} from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import { AssistantRegistre } from "@/components/assistant-registre";
 import {
@@ -95,6 +101,7 @@ type Visite = {
   personne_visitee: string;
   entreprise_visitee: string;
   arrivee_at: string;
+  depart_at: string | null;
   site_id: string | null;
   saisie_manuelle?: boolean;
   sites: { nom: string; adresse: string; code_postal: string; ville: string } | null;
@@ -105,6 +112,10 @@ const inputClass =
 
 function formatFr(iso: string) {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function heureFr(iso: string) {
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function adresseSite(v: Visite) {
@@ -137,6 +148,17 @@ function Visiteurs() {
         data: versRequete(filtres, siteTravail),
       }),
     refetchInterval: 30000,
+  });
+
+  const queryClient = useQueryClient();
+  const marquerDepart = useServerFn(enregistrerDepart);
+  const depart = useMutation({
+    mutationFn: (id: string) => marquerDepart({ data: { id } }),
+    onSuccess: (r) => {
+      toast.success(`Départ enregistré à ${heureFr(r.depart_at as string)}`);
+      queryClient.invalidateQueries({ queryKey: ["visites"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Départ non enregistré"),
   });
 
   const visites = useMemo(() => {
@@ -195,6 +217,7 @@ function Visiteurs() {
       "Entreprise du visiteur": v.entreprise,
       "Personne visitée": v.personne_visitee,
       "Entreprise visitée": v.entreprise_visitee,
+      Départ: v.depart_at ? formatFr(v.depart_at) : "",
     }));
   }
 
@@ -229,6 +252,7 @@ function Visiteurs() {
               <th className="px-4 py-3">{enteteTri("Entreprise", "entreprise")}</th>
               <th className="px-4 py-3">{enteteTri("Personne visitée", "personne_visitee")}</th>
               <th className="px-4 py-3">{enteteTri("Entreprise visitée", "entreprise_visitee")}</th>
+              <th className="px-4 py-3">Départ</th>
             </tr>
           </thead>
           <tbody>
@@ -268,6 +292,19 @@ function Visiteurs() {
                   <td className="px-4 py-3 text-muted-foreground">{v.entreprise}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.personne_visitee}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.entreprise_visitee}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {v.depart_at ? (
+                      <span className="text-foreground">Parti à {heureFr(v.depart_at)}</span>
+                    ) : (
+                      <button
+                        onClick={() => depart.mutate(v.id)}
+                        disabled={depart.isPending}
+                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        Départ
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             {!isLoading && !isError && visites.length === 0 && (
