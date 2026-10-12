@@ -158,7 +158,7 @@ export const listerVisites = createServerFn({ method: "POST" })
       let requete = context.supabase
         .from("visites")
         .select(
-          `id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, site_id, ${
+          `id, nom, prenom, entreprise, personne_visitee, entreprise_visitee, arrivee_at, depart_at, site_id, ${
             avecSaisie ? "saisie_manuelle, " : ""
           }sites(nom, adresse, code_postal, ville)`,
         )
@@ -204,9 +204,28 @@ export const listerVisites = createServerFn({ method: "POST" })
       personne_visitee: string;
       entreprise_visitee: string;
       arrivee_at: string;
+      depart_at: string | null;
       site_id: string | null;
       sites: { nom: string; adresse: string; code_postal: string; ville: string } | null;
     }>;
+  });
+
+/** Enregistre l'heure de départ d'un visiteur (une seule fois, jamais modifiable ensuite). */
+export const enregistrerDepart = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const departAt = new Date().toISOString();
+    const { data: ligne, error } = await context.supabase
+      .from("visites")
+      .update({ depart_at: departAt, depart_par: context.userId })
+      .eq("id", data.id)
+      .is("depart_at", null)
+      .select("id, depart_at")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ligne) throw new Error("Départ déjà enregistré ou visite inaccessible.");
+    return ligne;
   });
 
 /** Sites visibles par le compte connecté (tous pour la super admin). */
