@@ -232,6 +232,8 @@ export type Database = {
           arrivee_at: string
           created_at: string
           cree_par: string | null
+          depart_at: string | null
+          depart_par: string | null
           entreprise: string
           entreprise_visitee: string
           id: string
@@ -245,6 +247,8 @@ export type Database = {
           arrivee_at?: string
           created_at?: string
           cree_par?: string | null
+          depart_at?: string | null
+          depart_par?: string | null
           entreprise: string
           entreprise_visitee: string
           id?: string
@@ -258,6 +262,8 @@ export type Database = {
           arrivee_at?: string
           created_at?: string
           cree_par?: string | null
+          depart_at?: string | null
+          depart_par?: string | null
           entreprise?: string
           entreprise_visitee?: string
           id?: string
