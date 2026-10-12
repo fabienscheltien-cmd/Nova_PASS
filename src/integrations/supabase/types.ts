@@ -27,6 +27,7 @@ export type Database = {
           site_id: string | null
           statut: string
           statut_at: string | null
+          statut_nom: string | null
           statut_par: string | null
         }
         Insert: {
@@ -41,6 +42,7 @@ export type Database = {
           site_id?: string | null
           statut?: string
           statut_at?: string | null
+          statut_nom?: string | null
           statut_par?: string | null
         }
         Update: {
@@ -55,6 +57,7 @@ export type Database = {
           site_id?: string | null
           statut?: string
           statut_at?: string | null
+          statut_nom?: string | null
           statut_par?: string | null
         }
         Relationships: [
@@ -78,6 +81,7 @@ export type Database = {
           site_id: string | null
           statut: string
           statut_at: string | null
+          statut_nom: string | null
           statut_par: string | null
           trouve_at: string
         }
@@ -91,6 +95,7 @@ export type Database = {
           site_id?: string | null
           statut?: string
           statut_at?: string | null
+          statut_nom?: string | null
           statut_par?: string | null
           trouve_at?: string
         }
@@ -104,6 +109,7 @@ export type Database = {
           site_id?: string | null
           statut?: string
           statut_at?: string | null
+          statut_nom?: string | null
           statut_par?: string | null
           trouve_at?: string
         }
