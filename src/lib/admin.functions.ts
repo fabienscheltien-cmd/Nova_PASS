@@ -193,6 +193,62 @@ export const modifierCompte = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Définit le mot de passe de l'accès d'un site, à partir du site lui-même : le
+ * serveur retrouve le compte rattaché à ce site et vérifie que son adresse est
+ * bien l'e-mail d'accueil du site avant d'appliquer le mot de passe. Un mot de
+ * passe ne peut donc jamais s'appliquer à un compte d'un autre site, ni à une
+ * adresse différente de celle du site.
+ */
+export const definirMotDePasseSite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ siteId: z.string().uuid(), motDePasse: mdpValide }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await exigerSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: site, error: errSite } = await supabaseAdmin
+      .from("sites")
+      .select("nom, email_accueil")
+      .eq("id", data.siteId)
+      .maybeSingle();
+    if (errSite) throw new Error(errSite.message);
+    if (!site) throw new Error("Site introuvable.");
+    const emailSite = (site.email_accueil ?? "").trim().toLowerCase();
+    if (!emailSite) {
+      throw new Error(
+        `Le site ${site.nom} n'a pas d'e-mail d'accueil : renseignez-le (bouton « Modifier ») avant de définir un mot de passe.`,
+      );
+    }
+
+    const { data: profils, error: errProfils } = await supabaseAdmin
+      .from("profils")
+      .select("user_id")
+      .eq("site_id", data.siteId);
+    if (errProfils) throw new Error(errProfils.message);
+    const candidats: { userId: string; email: string }[] = [];
+    for (const p of profils ?? []) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(p.user_id);
+      if (u?.user?.email) candidats.push({ userId: p.user_id, email: u.user.email.toLowerCase() });
+    }
+    const compte = candidats.find((c) => c.email === emailSite);
+    if (!compte) {
+      throw new Error(
+        candidats.length
+          ? `L'accès du site ${site.nom} (${candidats.map((c) => c.email).join(", ")}) ne correspond pas à son e-mail d'accueil (${emailSite}). Cliquez sur « Rattacher l'accès à ${emailSite} » sur la ligne du site.`
+          : `Le site ${site.nom} n'a pas encore d'accès pour ${emailSite}. Cliquez sur « Créer l'accès » sur la ligne du site.`,
+      );
+    }
+    await refuserSiSuperAdmin(compte.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(compte.userId, {
+      password: data.motDePasse,
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+    return { email: compte.email, siteNom: site.nom };
+  });
+
 export const supprimerCompte = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ userId: z.string().uuid() }).parse(data))

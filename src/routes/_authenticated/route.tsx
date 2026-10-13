@@ -122,7 +122,7 @@ function Layout() {
           </div>
         </div>
       </header>
-      {nomSiteCourant && !doitChoisir && chemin !== "/affiche" && (
+      {nomSiteCourant && !doitChoisir && chemin !== "/affiche" && chemin !== "/sites" && (
         <p className="mx-auto max-w-6xl px-4 pt-6 text-2xl font-semibold tracking-tight text-foreground print:hidden">
           Bienvenue chez {nomSiteCourant}
         </p>
