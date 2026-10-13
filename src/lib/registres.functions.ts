@@ -146,6 +146,7 @@ export type ObjetTrouve = {
   observation: string;
   statut: "en_attente" | "restitue";
   statut_at: string | null;
+  statut_nom: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
@@ -161,7 +162,7 @@ export const listerObjetsTrouves = createServerFn({ method: "POST" })
         context.supabase
           .from("objets_trouves")
           .select(
-            "id, trouve_at, objet, emplacement, observation, statut, statut_at, site_id, sites(nom)",
+            "id, trouve_at, objet, emplacement, observation, statut, statut_at, statut_nom, site_id, sites(nom)",
           )
           .match(data.statut ? { statut: data.statut } : {})
           .order("trouve_at", { ascending: false })
@@ -212,6 +213,7 @@ export type Depot = {
   description: string;
   statut: "recu" | "remis";
   statut_at: string | null;
+  statut_nom: string | null;
   site_id: string | null;
   sites: { nom: string } | null;
 };
@@ -231,7 +233,7 @@ export const listerDepots = createServerFn({ method: "POST" })
       let q = context.supabase
         .from("courriers_colis")
         .select(
-          "id, categorie, recu_at, destinataire, expediteur, description, statut, statut_at, site_id, sites(nom)",
+          "id, categorie, recu_at, destinataire, expediteur, description, statut, statut_at, statut_nom, site_id, sites(nom)",
         )
         .order("recu_at", { ascending: false })
         .order("id")
@@ -276,7 +278,9 @@ export const ajouterDepot = createServerFn({ method: "POST" })
 /** Passe un objet trouvé à « restitué » (compte du site uniquement, une seule fois). */
 export const marquerObjetRestitue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
@@ -285,6 +289,7 @@ export const marquerObjetRestitue = createServerFn({ method: "POST" })
         statut: "restitue",
         statut_at: new Date().toISOString(),
         statut_par: context.userId,
+        statut_nom: data.nom,
       })
       .eq("id", data.id)
       .eq("statut", "en_attente")
@@ -297,16 +302,68 @@ export const marquerObjetRestitue = createServerFn({ method: "POST" })
 /** Passe un pli / colis / clé à « remis » (compte du site uniquement, une seule fois). */
 export const marquerDepotRemis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
       .from("courriers_colis")
-      .update({ statut: "remis", statut_at: new Date().toISOString(), statut_par: context.userId })
+      .update({
+        statut: "remis",
+        statut_at: new Date().toISOString(),
+        statut_par: context.userId,
+        statut_nom: data.nom,
+      })
       .eq("id", data.id)
       .eq("statut", "recu")
       .select("id");
     if (error) throw new Error(error.message);
     if (!lignes?.length) throw new Error("Déjà remis ou non modifiable.");
     return { ok: true };
+  });
+
+// ---------- Suppression (super admin uniquement) ----------
+
+export const REGISTRES = ["visites", "objets_trouves", "courriers_colis"] as const;
+export type Registre = (typeof REGISTRES)[number];
+
+/**
+ * Supprime définitivement des entrées d'un registre. Réservé à la super admin :
+ * le rôle est vérifié ici, côté serveur, avant toute suppression (un compte de
+ * site reçoit une erreur même s'il appelait la fonction directement). La base
+ * refusant toujours DELETE aux comptes connectés, la suppression passe par la
+ * clé serveur, uniquement après cette vérification.
+ */
+export const supprimerEntrees = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        registre: z.enum(REGISTRES),
+        ids: z.array(z.string().uuid()).min(1).max(5000),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: role, error } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "super_admin")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!role) throw new Error("La suppression est réservée aux super admins.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let supprimees = 0;
+    for (let i = 0; i < data.ids.length; i += 200) {
+      const { count, error: erreur } = await supabaseAdmin
+        .from(data.registre)
+        .delete({ count: "exact" })
+        .in("id", data.ids.slice(i, i + 200));
+      if (erreur) throw new Error(erreur.message);
+      supprimees += count ?? 0;
+    }
+    return { supprimees };
   });

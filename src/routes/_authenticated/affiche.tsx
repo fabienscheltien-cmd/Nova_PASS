@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/affiche")({
       { title: "Affiche d'accueil — Nova Pass" },
       {
         name: "description",
-        content: "Affiche A4 portrait du QR code d'accueil, prête à imprimer en PDF.",
+        content: "Affiche A4 portrait du QR code d'accueil, prête à imprimer ou à télécharger en PowerPoint (.pptx).",
       },
       { property: "og:title", content: "Affiche d'accueil — Nova Pass" },
       { property: "og:description", content: "Affiche imprimable du QR code de votre site." },

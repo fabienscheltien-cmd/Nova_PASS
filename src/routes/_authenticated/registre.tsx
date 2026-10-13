@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listerVisites, listerSites, monProfil } from "@/lib/visites.functions";
+import { toast } from "sonner";
+import { listerVisites, listerSites, monProfil, enregistrerDepart } from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import { AssistantRegistre } from "@/components/assistant-registre";
+import { SecuriteIncendie } from "@/components/securite-incendie";
+import {
+  CaseLigne,
+  CaseTout,
+  CorbeilleLigne,
+  useSuppression,
+} from "@/components/suppression-registre";
 import {
   AjoutVisiteur,
   BarreFiltres,
@@ -95,6 +103,7 @@ type Visite = {
   personne_visitee: string;
   entreprise_visitee: string;
   arrivee_at: string;
+  depart_at: string | null;
   site_id: string | null;
   saisie_manuelle?: boolean;
   sites: { nom: string; adresse: string; code_postal: string; ville: string } | null;
@@ -105,6 +114,10 @@ const inputClass =
 
 function formatFr(iso: string) {
   return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function heureFr(iso: string) {
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function adresseSite(v: Visite) {
@@ -139,6 +152,17 @@ function Visiteurs() {
     refetchInterval: 30000,
   });
 
+  const queryClient = useQueryClient();
+  const marquerDepart = useServerFn(enregistrerDepart);
+  const depart = useMutation({
+    mutationFn: (id: string) => marquerDepart({ data: { id } }),
+    onSuccess: (r) => {
+      toast.success(`Départ enregistré à ${heureFr(r.depart_at as string)}`);
+      queryClient.invalidateQueries({ queryKey: ["visites"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Départ non enregistré"),
+  });
+
   const visites = useMemo(() => {
     const lignes = [...((data ?? []) as Visite[])];
     const cle = (v: Visite): string => {
@@ -163,6 +187,17 @@ function Visiteurs() {
     });
     return lignes;
   }, [data, tri, sens]);
+
+  const idsVisibles = useMemo(() => visites.map((v) => v.id), [visites]);
+  const suppression = useSuppression({
+    registre: "visites",
+    idsVisibles,
+    cles: [["visites"], ["presents"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} visite${n > 1 ? "s" : ""}`,
+  });
+  const sel = suppression.actif ? suppression : null;
+  const nbColonnes = 7 + (sel ? 2 : 0);
 
   function changerTri(col: ColTri) {
     if (tri === col) setSens(sens === "asc" ? "desc" : "asc");
@@ -195,6 +230,7 @@ function Visiteurs() {
       "Entreprise du visiteur": v.entreprise,
       "Personne visitée": v.personne_visitee,
       "Entreprise visitée": v.entreprise_visitee,
+      Départ: v.depart_at ? formatFr(v.depart_at) : "",
     }));
   }
 
@@ -211,6 +247,8 @@ function Visiteurs() {
         />
       </div>
 
+      <SecuriteIncendie siteId={siteTravail} />
+
       <AjoutVisiteur profil={profil} />
 
       <BarreFiltres
@@ -219,29 +257,38 @@ function Visiteurs() {
         placeholder="Nom, entreprise, personne visitée…"
       />
 
+      {suppression.rendu}
+
       <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {sel && (
+                <th className="w-10 px-4 py-3">
+                  <CaseTout s={sel} />
+                </th>
+              )}
               <th className="px-4 py-3">{enteteTri("Date et heure", "arrivee_at")}</th>
               <th className="px-4 py-3">{enteteTri("Site", "site")}</th>
               <th className="px-4 py-3">{enteteTri("Visiteur", "visiteur")}</th>
               <th className="px-4 py-3">{enteteTri("Entreprise", "entreprise")}</th>
               <th className="px-4 py-3">{enteteTri("Personne visitée", "personne_visitee")}</th>
               <th className="px-4 py-3">{enteteTri("Entreprise visitée", "entreprise_visitee")}</th>
+              <th className="px-4 py-3">Départ</th>
+              {sel && <th className="w-12 px-2 py-3" aria-label="Supprimer" />}
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={nbColonnes} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-destructive">
+                <td colSpan={nbColonnes} className="px-4 py-8 text-center text-destructive">
                   Le registre n'a pas pu être chargé.
                 </td>
               </tr>
@@ -249,7 +296,15 @@ function Visiteurs() {
             {!isLoading &&
               !isError &&
               visites.map((v) => (
-                <tr key={v.id} className="border-b border-border last:border-0">
+                <tr
+                  key={v.id}
+                  className={`border-b border-border last:border-0 ${sel?.coches.has(v.id) ? "bg-destructive/5" : ""}`}
+                >
+                  {sel && (
+                    <td className="px-4 py-3">
+                      <CaseLigne s={sel} id={v.id} />
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-4 py-3 text-foreground">
                     {formatFr(v.arrivee_at)}
                   </td>
@@ -268,11 +323,29 @@ function Visiteurs() {
                   <td className="px-4 py-3 text-muted-foreground">{v.entreprise}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.personne_visitee}</td>
                   <td className="px-4 py-3 text-muted-foreground">{v.entreprise_visitee}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {v.depart_at ? (
+                      <span className="text-foreground">Parti à {heureFr(v.depart_at)}</span>
+                    ) : (
+                      <button
+                        onClick={() => depart.mutate(v.id)}
+                        disabled={depart.isPending}
+                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        Départ
+                      </button>
+                    )}
+                  </td>
+                  {sel && (
+                    <td className="px-2 py-2">
+                      <CorbeilleLigne s={sel} id={v.id} />
+                    </td>
+                  )}
                 </tr>
               ))}
             {!isLoading && !isError && visites.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={nbColonnes} className="px-4 py-10 text-center text-muted-foreground">
                   Aucune visite pour ces critères.
                 </td>
               </tr>

@@ -2,6 +2,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { neutraliserFormule } from "@/lib/export";
+import {
+  CaseLigne,
+  CaseTout,
+  CorbeilleLigne,
+  useSuppression,
+  type Suppression,
+} from "@/components/suppression-registre";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   ajouterDepot,
@@ -30,9 +37,9 @@ export type Site = { id: string; nom: string };
 
 export const LIBELLES_STATUT = {
   en_attente: "En attente",
-  restitue: "Restitué",
+  restitue: "Récupéré",
   recu: "Reçu",
-  remis: "Remis",
+  remis: "Transmis",
 } as const;
 type CleStatut = keyof typeof LIBELLES_STATUT;
 
@@ -72,13 +79,20 @@ function Statut({
   libelle,
   final,
   depuis,
+  nom,
   action,
 }: {
   libelle: string;
   final: boolean;
   depuis: string | null;
+  nom?: string | null;
   action?:
-    | { libelle: string; confirmation: string; executer: () => Promise<unknown>; cles: string[][] }
+    | {
+        libelle: string;
+        question: string;
+        executer: (nom: string) => Promise<unknown>;
+        cles: string[][];
+      }
     | undefined;
 }) {
   const queryClient = useQueryClient();
@@ -95,14 +109,16 @@ function Statut({
       {final && depuis && (
         <span className="text-[11px] text-muted-foreground">{formatFr(depuis)}</span>
       )}
+      {final && nom && <span className="text-[11px] text-foreground">par {nom}</span>}
       {action && (
         <button
           disabled={envoi}
           onClick={async () => {
-            if (!confirm(action.confirmation)) return;
+            const saisi = prompt(action.question)?.trim();
+            if (!saisi) return;
             setEnvoi(true);
             try {
-              await action.executer();
+              await action.executer(saisi);
               for (const cle of action.cles) await queryClient.invalidateQueries({ queryKey: cle });
             } catch (err) {
               alert(err instanceof Error ? err.message : "Action impossible.");
@@ -549,6 +565,13 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
     [["objets"]],
   );
   const lignes = data ?? [];
+  const suppression = useSuppression({
+    registre: "objets_trouves",
+    idsVisibles: lignes.map((o) => o.id),
+    cles: [["objets"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} objet${n > 1 ? "s" : ""} trouvé${n > 1 ? "s" : ""}`,
+  });
 
   return (
     <>
@@ -568,6 +591,7 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
                 Observation: o.observation,
                 Statut: LIBELLES_STATUT[o.statut],
                 "Date du statut": o.statut_at ? formatFr(o.statut_at) : "",
+                "Récupéré par": o.statut_nom ?? "",
               })),
               "objets-trouves",
               f,
@@ -650,7 +674,10 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
         />
       </BarreFiltres>
 
+      {suppression.rendu}
+
       <Tableau
+        suppression={suppression}
         entetes={["Date et heure", "Site", "Objet", "Emplacement", "Observation", "Statut"]}
         isLoading={isLoading}
         isError={isError}
@@ -668,12 +695,13 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
               libelle={LIBELLES_STATUT[o.statut]}
               final={o.statut === "restitue"}
               depuis={o.statut_at}
+              nom={o.statut_nom}
               action={
                 peutAjouter(profil) && o.statut === "en_attente"
                   ? {
-                      libelle: "Marquer restitué",
-                      confirmation: `Confirmer la restitution de « ${o.objet} » ? Cette action est définitive.`,
-                      executer: () => restituer({ data: { id: o.id } }),
+                      libelle: "Récupéré",
+                      question: `Nom de la personne qui récupère « ${o.objet} » (date et heure enregistrées automatiquement, action définitive) :`,
+                      executer: (nom) => restituer({ data: { id: o.id, nom } }),
                       cles: [["objets"]],
                     }
                   : undefined
@@ -719,6 +747,13 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
     [["depots"]],
   );
   const lignes = data ?? [];
+  const suppression = useSuppression({
+    registre: "courriers_colis",
+    idsVisibles: lignes.map((d) => d.id),
+    cles: [["depots"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} entrée${n > 1 ? "s" : ""}`,
+  });
 
   return (
     <>
@@ -739,6 +774,7 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
                 Description: d.description,
                 Statut: LIBELLES_STATUT[d.statut],
                 "Date du statut": d.statut_at ? formatFr(d.statut_at) : "",
+                "Transmis à": d.statut_nom ?? "",
               })),
               "courrier-colis-cles",
               f,
@@ -853,7 +889,10 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
         />
       </BarreFiltres>
 
+      {suppression.rendu}
+
       <Tableau
+        suppression={suppression}
         entetes={[
           "Date et heure",
           "Site",
@@ -880,12 +919,13 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
               libelle={LIBELLES_STATUT[d.statut]}
               final={d.statut === "remis"}
               depuis={d.statut_at}
+              nom={d.statut_nom}
               action={
                 peutAjouter(profil) && d.statut === "recu"
                   ? {
-                      libelle: "Marquer remis",
-                      confirmation: `Confirmer la remise à ${d.destinataire} ? Cette action est définitive.`,
-                      executer: () => remettre({ data: { id: d.id } }),
+                      libelle: "Transmis",
+                      question: `Nom de la personne à qui c'est transmis (destinataire : ${d.destinataire}). Date et heure enregistrées automatiquement, action définitive :`,
+                      executer: (nom) => remettre({ data: { id: d.id, nom } }),
                       cles: [["depots"]],
                     }
                   : undefined
@@ -904,13 +944,16 @@ function Tableau({
   isLoading,
   isError,
   vide,
+  suppression,
 }: {
   entetes: string[];
   lignes: { id: string; cellules: ReactNode[] }[];
   isLoading: boolean;
   isError: boolean;
   vide: string;
+  suppression?: Suppression;
 }) {
+  const sel = suppression?.actif ? suppression : null;
   const message = isLoading
     ? "Chargement…"
     : isError
@@ -923,18 +966,24 @@ function Tableau({
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
+            {sel && (
+              <th className="w-10 px-4 py-3">
+                <CaseTout s={sel} />
+              </th>
+            )}
             {entetes.map((h) => (
               <th key={h} className="px-4 py-3">
                 {h}
               </th>
             ))}
+            {sel && <th className="w-12 px-2 py-3" aria-label="Supprimer" />}
           </tr>
         </thead>
         <tbody>
           {message ? (
             <tr>
               <td
-                colSpan={entetes.length}
+                colSpan={entetes.length + (sel ? 2 : 0)}
                 className={`px-4 py-8 text-center ${isError ? "text-destructive" : "text-muted-foreground"}`}
               >
                 {message}
@@ -942,7 +991,15 @@ function Tableau({
             </tr>
           ) : (
             lignes.map((l) => (
-              <tr key={l.id} className="border-b border-border align-top last:border-0">
+              <tr
+                key={l.id}
+                className={`border-b border-border align-top last:border-0 ${sel?.coches.has(l.id) ? "bg-destructive/5" : ""}`}
+              >
+                {sel && (
+                  <td className="px-4 py-3">
+                    <CaseLigne s={sel} id={l.id} />
+                  </td>
+                )}
                 {l.cellules.map((c, i) => (
                   <td
                     key={i}
@@ -955,6 +1012,11 @@ function Tableau({
                     {c}
                   </td>
                 ))}
+                {sel && (
+                  <td className="px-2 py-2">
+                    <CorbeilleLigne s={sel} id={l.id} />
+                  </td>
+                )}
               </tr>
             ))
           )}
