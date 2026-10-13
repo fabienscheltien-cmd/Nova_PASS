@@ -46,9 +46,6 @@ function Index() {
 
   const chargerProfil = useServerFn(monProfil);
   const [siteConnecte, setSiteConnecte] = useState<string | null>(null);
-  // Vrai tant qu'on ne sait pas si un compte de site est connecté (évite
-  // d'afficher le QR par défaut une fraction de seconde avant celui du site).
-  const [sessionEnCours, setSessionEnCours] = useState(true);
 
   useEffect(() => {
     // Si une hôtesse est connectée, l'écran affiche automatiquement son site.
@@ -65,8 +62,7 @@ function Index() {
       })
       .catch(() => {
         /* ignoré */
-      })
-      .finally(() => setSessionEnCours(false));
+      });
   }, [chargerProfil]);
 
   useEffect(() => {
@@ -82,12 +78,10 @@ function Index() {
   const siteVoulu = siteId || (!siteParam && siteConnecte) || "";
   const siteActif = (sites ?? []).find((s) => s.id === siteVoulu) ?? null;
   // Site demandé (lien ou compte connecté) dont la liste n'est pas encore arrivée.
-  const siteEnAttente =
-    (siteVoulu !== "" && sites === undefined && !sitesIndisponibles) ||
-    (!siteParam && sessionEnCours);
-  // QR du site s'il est connu ; sinon QR par défaut vers le formulaire visiteur.
-  // Toujours l'adresse publique (jamais celle de la prévisualisation Lovable).
-  const url = siteEnAttente ? "" : urlCheckin(siteActif?.id);
+  const siteEnAttente = siteVoulu !== "" && sites === undefined && !sitesIndisponibles;
+  // Un QR code = un site : il n'apparaît que si un site est actif (lien /?site=…
+  // ou compte du site connecté). Toujours l'adresse publique, jamais la prévisualisation.
+  const url = siteActif ? urlCheckin(siteActif.id) : "";
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
@@ -128,23 +122,23 @@ function Index() {
             <h1 className="text-4xl font-semibold text-hero-foreground sm:text-5xl lg:text-6xl">
               {siteActif ? `Bienvenue chez ${siteActif.nom}` : "Bienvenue chez Nova Serenity"}
             </h1>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
-              Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
-            </p>
+            {(url || siteEnAttente) && (
+              <>
+                <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
+                  Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
+                </p>
 
-            <div className="mt-7 inline-flex overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
-              {url ? (
-                <div aria-label="QR code vers le formulaire visiteur">
-                  <SiteQr
-                    value={url}
-                    logoUrl={siteActif ? siteActif.logo_url : novaSerenityLogo.url}
-                    size={244}
-                  />
+                <div className="mt-7 inline-flex overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
+                  {url ? (
+                    <div aria-label="QR code vers le formulaire visiteur">
+                      <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />
+                    </div>
+                  ) : (
+                    <div className="h-[244px] w-[244px] bg-white" aria-hidden="true" />
+                  )}
                 </div>
-              ) : (
-                <div className="h-[244px] w-[244px] bg-white" aria-hidden="true" />
-              )}
-            </div>
+              </>
+            )}
 
             <p className="mt-5 text-sm text-hero-muted">
               Pas de téléphone ?{" "}

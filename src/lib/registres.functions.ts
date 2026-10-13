@@ -278,7 +278,9 @@ export const ajouterDepot = createServerFn({ method: "POST" })
 /** Passe un objet trouvé à « restitué » (compte du site uniquement, une seule fois). */
 export const marquerObjetRestitue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
@@ -300,16 +302,68 @@ export const marquerObjetRestitue = createServerFn({ method: "POST" })
 /** Passe un pli / colis / clé à « remis » (compte du site uniquement, une seule fois). */
 export const marquerDepotRemis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), nom: champ(160) }).parse(data),
+  )
   .handler(async ({ data, context }) => {
     await siteCible(context);
     const { data: lignes, error } = await context.supabase
       .from("courriers_colis")
-      .update({ statut: "remis", statut_at: new Date().toISOString(), statut_par: context.userId, statut_nom: data.nom })
+      .update({
+        statut: "remis",
+        statut_at: new Date().toISOString(),
+        statut_par: context.userId,
+        statut_nom: data.nom,
+      })
       .eq("id", data.id)
       .eq("statut", "recu")
       .select("id");
     if (error) throw new Error(error.message);
     if (!lignes?.length) throw new Error("Déjà remis ou non modifiable.");
     return { ok: true };
+  });
+
+// ---------- Suppression (super admin uniquement) ----------
+
+export const REGISTRES = ["visites", "objets_trouves", "courriers_colis"] as const;
+export type Registre = (typeof REGISTRES)[number];
+
+/**
+ * Supprime définitivement des entrées d'un registre. Réservé à la super admin :
+ * le rôle est vérifié ici, côté serveur, avant toute suppression (un compte de
+ * site reçoit une erreur même s'il appelait la fonction directement). La base
+ * refusant toujours DELETE aux comptes connectés, la suppression passe par la
+ * clé serveur, uniquement après cette vérification.
+ */
+export const supprimerEntrees = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        registre: z.enum(REGISTRES),
+        ids: z.array(z.string().uuid()).min(1).max(5000),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: role, error } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "super_admin")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!role) throw new Error("La suppression est réservée aux super admins.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let supprimees = 0;
+    for (let i = 0; i < data.ids.length; i += 200) {
+      const { count, error: erreur } = await supabaseAdmin
+        .from(data.registre)
+        .delete({ count: "exact" })
+        .in("id", data.ids.slice(i, i + 200));
+      if (erreur) throw new Error(erreur.message);
+      supprimees += count ?? 0;
+    }
+    return { supprimees };
   });

@@ -6,6 +6,7 @@ import { enregistrerVisite, listerSitesPublics } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import { SiteBrand } from "@/components/site-brand";
+import { AvisGoogle } from "@/components/avis-google";
 
 export const Route = createFileRoute("/checkin")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
@@ -123,6 +124,7 @@ function Checkin() {
                 Votre arrivée est enregistrée et l'accueil a été prévenu. Merci de patienter
                 quelques instants.
               </p>
+              <AvisGoogle />
             </div>
           </section>
         </div>

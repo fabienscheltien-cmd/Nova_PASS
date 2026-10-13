@@ -48,12 +48,20 @@ export function SecuriteIncendie({ siteId }: { siteId: string | undefined }) {
     <>
       <button
         onClick={() => setOuvert(true)}
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90"
+        title="Liste d'évacuation des personnes présentes"
+        className="mt-4 inline-flex items-center gap-2.5 rounded-lg border border-emerald-600/40 bg-emerald-600/10 px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-emerald-600/20"
       >
-        🚨 Sécurité incendie : {presents.length} présent{presents.length > 1 ? "s" : ""} sur site
+        <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+        </span>
+        Live : {presents.length} présent{presents.length > 1 ? "s" : ""} sur site
       </button>
       {ouvert && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-background p-6 print:p-0" id="liste-incendie">
+        <div
+          className="fixed inset-0 z-50 overflow-auto bg-background p-6 print:p-0"
+          id="liste-incendie"
+        >
           <style>{`@media print { body * { visibility: hidden } #liste-incendie, #liste-incendie * { visibility: visible } #liste-incendie { position: absolute; inset: 0 } .no-print { display: none !important } }`}</style>
           <div className="mx-auto max-w-4xl">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,10 +74,30 @@ export function SecuriteIncendie({ siteId }: { siteId: string | undefined }) {
                 </p>
               </div>
               <div className="no-print flex gap-2">
-                <button onClick={() => window.print()} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">Imprimer</button>
-                <button onClick={() => exporter(lignes(), "liste-evacuation", "xlsx")} className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">Excel</button>
-                <button onClick={() => exporter(lignes(), "liste-evacuation", "csv")} className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">CSV</button>
-                <button onClick={() => setOuvert(false)} className="rounded-lg border border-border px-3 py-2 text-sm text-foreground">Fermer</button>
+                <button
+                  onClick={() => window.print()}
+                  className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
+                >
+                  Imprimer
+                </button>
+                <button
+                  onClick={() => exporter(lignes(), "liste-evacuation", "xlsx")}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-foreground"
+                >
+                  Excel
+                </button>
+                <button
+                  onClick={() => exporter(lignes(), "liste-evacuation", "csv")}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-foreground"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={() => setOuvert(false)}
+                  className="rounded-lg border border-border px-3 py-2 text-sm text-foreground"
+                >
+                  Fermer
+                </button>
               </div>
             </div>
             <table className="mt-6 w-full border-collapse text-left text-sm">
@@ -85,15 +113,25 @@ export function SecuriteIncendie({ siteId }: { siteId: string | undefined }) {
               <tbody>
                 {presents.map((v) => (
                   <tr key={v.id} className="border-b border-border text-foreground">
-                    <td className="py-2"><span className="inline-block h-4 w-4 border border-foreground" /></td>
-                    <td className="py-2 font-medium">{v.prenom} {v.nom}</td>
+                    <td className="py-2">
+                      <span className="inline-block h-4 w-4 border border-foreground" />
+                    </td>
+                    <td className="py-2 font-medium">
+                      {v.prenom} {v.nom}
+                    </td>
                     <td className="py-2">{v.entreprise}</td>
-                    <td className="py-2">{v.personne_visitee} — {v.entreprise_visitee}</td>
+                    <td className="py-2">
+                      {v.personne_visitee} — {v.entreprise_visitee}
+                    </td>
                     <td className="py-2">{heure(v.arrivee_at)}</td>
                   </tr>
                 ))}
                 {presents.length === 0 && (
-                  <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Aucun visiteur présent sur site.</td></tr>
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                      Aucun visiteur présent sur site.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

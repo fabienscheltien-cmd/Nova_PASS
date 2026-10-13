@@ -3,15 +3,16 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  listerVisites,
-  listerSites,
-  monProfil,
-  enregistrerDepart,
-} from "@/lib/visites.functions";
+import { listerVisites, listerSites, monProfil, enregistrerDepart } from "@/lib/visites.functions";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import { AssistantRegistre } from "@/components/assistant-registre";
 import { SecuriteIncendie } from "@/components/securite-incendie";
+import {
+  CaseLigne,
+  CaseTout,
+  CorbeilleLigne,
+  useSuppression,
+} from "@/components/suppression-registre";
 import {
   AjoutVisiteur,
   BarreFiltres,
@@ -187,6 +188,17 @@ function Visiteurs() {
     return lignes;
   }, [data, tri, sens]);
 
+  const idsVisibles = useMemo(() => visites.map((v) => v.id), [visites]);
+  const suppression = useSuppression({
+    registre: "visites",
+    idsVisibles,
+    cles: [["visites"], ["presents"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} visite${n > 1 ? "s" : ""}`,
+  });
+  const sel = suppression.actif ? suppression : null;
+  const nbColonnes = 7 + (sel ? 2 : 0);
+
   function changerTri(col: ColTri) {
     if (tri === col) setSens(sens === "asc" ? "desc" : "asc");
     else {
@@ -245,10 +257,17 @@ function Visiteurs() {
         placeholder="Nom, entreprise, personne visitée…"
       />
 
+      {suppression.rendu}
+
       <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              {sel && (
+                <th className="w-10 px-4 py-3">
+                  <CaseTout s={sel} />
+                </th>
+              )}
               <th className="px-4 py-3">{enteteTri("Date et heure", "arrivee_at")}</th>
               <th className="px-4 py-3">{enteteTri("Site", "site")}</th>
               <th className="px-4 py-3">{enteteTri("Visiteur", "visiteur")}</th>
@@ -256,19 +275,20 @@ function Visiteurs() {
               <th className="px-4 py-3">{enteteTri("Personne visitée", "personne_visitee")}</th>
               <th className="px-4 py-3">{enteteTri("Entreprise visitée", "entreprise_visitee")}</th>
               <th className="px-4 py-3">Départ</th>
+              {sel && <th className="w-12 px-2 py-3" aria-label="Supprimer" />}
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={nbColonnes} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-destructive">
+                <td colSpan={nbColonnes} className="px-4 py-8 text-center text-destructive">
                   Le registre n'a pas pu être chargé.
                 </td>
               </tr>
@@ -276,7 +296,15 @@ function Visiteurs() {
             {!isLoading &&
               !isError &&
               visites.map((v) => (
-                <tr key={v.id} className="border-b border-border last:border-0">
+                <tr
+                  key={v.id}
+                  className={`border-b border-border last:border-0 ${sel?.coches.has(v.id) ? "bg-destructive/5" : ""}`}
+                >
+                  {sel && (
+                    <td className="px-4 py-3">
+                      <CaseLigne s={sel} id={v.id} />
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-4 py-3 text-foreground">
                     {formatFr(v.arrivee_at)}
                   </td>
@@ -308,11 +336,16 @@ function Visiteurs() {
                       </button>
                     )}
                   </td>
+                  {sel && (
+                    <td className="px-2 py-2">
+                      <CorbeilleLigne s={sel} id={v.id} />
+                    </td>
+                  )}
                 </tr>
               ))}
             {!isLoading && !isError && visites.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={nbColonnes} className="px-4 py-10 text-center text-muted-foreground">
                   Aucune visite pour ces critères.
                 </td>
               </tr>

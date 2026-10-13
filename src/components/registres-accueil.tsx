@@ -2,6 +2,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { neutraliserFormule } from "@/lib/export";
+import {
+  CaseLigne,
+  CaseTout,
+  CorbeilleLigne,
+  useSuppression,
+  type Suppression,
+} from "@/components/suppression-registre";
 import { useSiteDeTravail } from "@/lib/site-analyse";
 import {
   ajouterDepot,
@@ -558,6 +565,13 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
     [["objets"]],
   );
   const lignes = data ?? [];
+  const suppression = useSuppression({
+    registre: "objets_trouves",
+    idsVisibles: lignes.map((o) => o.id),
+    cles: [["objets"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} objet${n > 1 ? "s" : ""} trouvé${n > 1 ? "s" : ""}`,
+  });
 
   return (
     <>
@@ -660,7 +674,10 @@ export function RegistreObjets({ profil }: { profil: Profil }) {
         />
       </BarreFiltres>
 
+      {suppression.rendu}
+
       <Tableau
+        suppression={suppression}
         entetes={["Date et heure", "Site", "Objet", "Emplacement", "Observation", "Statut"]}
         isLoading={isLoading}
         isError={isError}
@@ -730,6 +747,13 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
     [["depots"]],
   );
   const lignes = data ?? [];
+  const suppression = useSuppression({
+    registre: "courriers_colis",
+    idsVisibles: lignes.map((d) => d.id),
+    cles: [["depots"]],
+    actif: profil?.estSuperAdmin === true,
+    libelle: (n) => `${n} entrée${n > 1 ? "s" : ""}`,
+  });
 
   return (
     <>
@@ -865,7 +889,10 @@ export function RegistreDepots({ profil }: { profil: Profil }) {
         />
       </BarreFiltres>
 
+      {suppression.rendu}
+
       <Tableau
+        suppression={suppression}
         entetes={[
           "Date et heure",
           "Site",
@@ -917,13 +944,16 @@ function Tableau({
   isLoading,
   isError,
   vide,
+  suppression,
 }: {
   entetes: string[];
   lignes: { id: string; cellules: ReactNode[] }[];
   isLoading: boolean;
   isError: boolean;
   vide: string;
+  suppression?: Suppression;
 }) {
+  const sel = suppression?.actif ? suppression : null;
   const message = isLoading
     ? "Chargement…"
     : isError
@@ -936,18 +966,24 @@ function Tableau({
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
+            {sel && (
+              <th className="w-10 px-4 py-3">
+                <CaseTout s={sel} />
+              </th>
+            )}
             {entetes.map((h) => (
               <th key={h} className="px-4 py-3">
                 {h}
               </th>
             ))}
+            {sel && <th className="w-12 px-2 py-3" aria-label="Supprimer" />}
           </tr>
         </thead>
         <tbody>
           {message ? (
             <tr>
               <td
-                colSpan={entetes.length}
+                colSpan={entetes.length + (sel ? 2 : 0)}
                 className={`px-4 py-8 text-center ${isError ? "text-destructive" : "text-muted-foreground"}`}
               >
                 {message}
@@ -955,7 +991,15 @@ function Tableau({
             </tr>
           ) : (
             lignes.map((l) => (
-              <tr key={l.id} className="border-b border-border align-top last:border-0">
+              <tr
+                key={l.id}
+                className={`border-b border-border align-top last:border-0 ${sel?.coches.has(l.id) ? "bg-destructive/5" : ""}`}
+              >
+                {sel && (
+                  <td className="px-4 py-3">
+                    <CaseLigne s={sel} id={l.id} />
+                  </td>
+                )}
                 {l.cellules.map((c, i) => (
                   <td
                     key={i}
@@ -968,6 +1012,11 @@ function Tableau({
                     {c}
                   </td>
                 ))}
+                {sel && (
+                  <td className="px-2 py-2">
+                    <CorbeilleLigne s={sel} id={l.id} />
+                  </td>
+                )}
               </tr>
             ))
           )}
