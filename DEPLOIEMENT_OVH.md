@@ -47,7 +47,12 @@ fournit pas : il faut un projet Supabase à vous.
 4. *Authentication › URL Configuration* :
    - **Site URL** : `https://novapass.nova-serenity.fr`
    - **Redirect URLs** : ajouter `https://novapass.nova-serenity.fr/reset-password`
-5. *Project Settings › API* : noter l'**URL du projet**, la **clé publique**
+5. *Authentication › Emails › SMTP Settings* : activer **Custom SMTP** avec l'adresse OVH de
+   l'accueil (hôte `ssl0.ovh.net`, port 465, identifiant et mot de passe de l'adresse).
+   Indispensable : sans cela, Supabase n'envoie les e-mails de mot de passe (« Envoyer un
+   lien », « Mot de passe oublié ») qu'aux membres de votre équipe Supabase, et au plus
+   2 par heure.
+6. *Project Settings › API* : noter l'**URL du projet**, la **clé publique**
    (`anon` / `sb_publishable_…`) et la **clé secrète** (`service_role` / `sb_secret_…`).
 
 **Données existantes** : les comptes et mots de passe de Lovable Cloud ne sont pas
@@ -140,4 +145,15 @@ Toute modification d'une variable `VITE_*` de `.env.production` demande de relan
 
 - **Assistant « Poser une question sur les visites »** : il utilise le service d'IA de Lovable
   et affiche « Assistant non configuré » sur OVH. Le reste de l'application fonctionne.
-- **E-mails** : passent par le SMTP OVH (le service e-mail Lovable n'est pas disponible).
+- **E-mails** : ceux de l'application (arrivée d'un visiteur) passent par le SMTP OVH de
+  `.env.production` ; ceux des mots de passe passent par le SMTP configuré dans Supabase
+  (étape 1.5). Le service e-mail Lovable n'est pas disponible.
+- **Images** : copiées depuis Lovable par `recuperer-medias.sh`, à lancer avant d'arrêter le
+  site Lovable.
+- **Comptes et données** : les mots de passe de Lovable Cloud ne sont pas transférables ;
+  les comptes sont à recréer.
+- **Modifications faites ensuite dans Lovable** : elles arrivent sur GitHub mais ne sont pas
+  mises en ligne seules sur OVH (lancer `deployer.sh`). L'aperçu Lovable continue d'utiliser
+  la base Lovable Cloud, pas la vôtre ; une modification de la base faite par Lovable
+  (nouveau fichier dans `supabase/migrations/` ou `drizzle/migrations/`) doit être exécutée
+  à la main dans l'éditeur SQL de votre projet Supabase.
