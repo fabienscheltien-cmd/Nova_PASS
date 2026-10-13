@@ -637,7 +637,7 @@ function Sites() {
                         Écran d'accueil du site
                       </a>
                       <a href={`/affiche?site=${s.id}`} className="text-primary hover:underline">
-                        Affiche PDF
+                        Affiche PPT
                       </a>
                     </div>
                   </div>

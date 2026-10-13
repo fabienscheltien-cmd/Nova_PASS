@@ -24,3 +24,6 @@ export function urlCheckin(siteId?: string | null) {
 export const URL_AVIS_GOOGLE =
   (import.meta.env?.["VITE_URL_AVIS_GOOGLE"] as string | undefined) ||
   "https://www.google.com/maps/search/?api=1&query=Nova%20Serenity";
+
+/** Site institutionnel, ouvert par le QR de l'écran d'accueil quand aucun site n'est actif. */
+export const URL_SITE_NOVA_SERENITY = "https://www.nova-serenity.fr";

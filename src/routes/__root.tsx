@@ -13,8 +13,6 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { installerFaviconCarre } from "@/lib/favicon";
-import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
 
 function NotFoundComponent() {
   return (
@@ -95,9 +93,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      // Logo officiel Nova Serenity (recadré en carré au chargement de la page).
-      { rel: "icon", href: novaSerenityLogo.url, type: "image/png" },
-      { rel: "apple-touch-icon", href: novaSerenityLogo.url },
+      // Logo officiel Nova Serenity (16, 32 et 48 px).
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
     ],
   }),
   shellComponent: RootShell,
@@ -122,7 +119,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useEffect(() => installerFaviconCarre(novaSerenityLogo.url), []);
 
   return (
     <QueryClientProvider client={queryClient}>

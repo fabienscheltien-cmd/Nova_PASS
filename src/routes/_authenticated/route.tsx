@@ -82,7 +82,7 @@ function Layout() {
               className={lienClass}
               activeProps={{ className: "text-foreground font-medium" }}
             >
-              Affiche PDF
+              Affiche PPT
             </Link>
             {profil?.estSuperAdmin && (
               <Link

@@ -9,7 +9,7 @@ import { listerSitesPublics } from "@/lib/visites.functions";
 
 import novaReception from "@/assets/nova-reception.jpg.asset.json";
 import novaSerenityLogo from "@/assets/nova-serenity.png.asset.json";
-import { urlCheckin } from "@/lib/config";
+import { URL_SITE_NOVA_SERENITY, urlCheckin } from "@/lib/config";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): { site?: string | undefined } => ({
@@ -79,9 +79,9 @@ function Index() {
   const siteActif = (sites ?? []).find((s) => s.id === siteVoulu) ?? null;
   // Site demandé (lien ou compte connecté) dont la liste n'est pas encore arrivée.
   const siteEnAttente = siteVoulu !== "" && sites === undefined && !sitesIndisponibles;
-  // Un QR code = un site : il n'apparaît que si un site est actif (lien /?site=…
-  // ou compte du site connecté). Toujours l'adresse publique, jamais la prévisualisation.
-  const url = siteActif ? urlCheckin(siteActif.id) : "";
+  // Site actif (lien /?site=… ou compte du site connecté) : QR du formulaire de ce
+  // site, toujours sur l'adresse publique. Sinon : QR vers le site Nova Serenity.
+  const url = siteActif ? urlCheckin(siteActif.id) : siteEnAttente ? "" : URL_SITE_NOVA_SERENITY;
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-foreground">
@@ -125,13 +125,25 @@ function Index() {
             {(url || siteEnAttente) && (
               <>
                 <p className="mt-4 max-w-md text-base leading-relaxed text-hero-muted sm:text-lg">
-                  Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement.
+                  {siteActif || siteEnAttente
+                    ? "Scannez le QR code pour vous enregistrer. L'accueil sera prévenu immédiatement."
+                    : "Scannez le QR code pour découvrir Nova Serenity."}
                 </p>
 
                 <div className="mt-7 inline-flex overflow-hidden rounded-2xl border border-hero-line shadow-2xl">
                   {url ? (
-                    <div aria-label="QR code vers le formulaire visiteur">
-                      <SiteQr value={url} logoUrl={siteActif?.logo_url} size={244} />
+                    <div
+                      aria-label={
+                        siteActif
+                          ? "QR code vers le formulaire visiteur"
+                          : "QR code vers le site Nova Serenity"
+                      }
+                    >
+                      <SiteQr
+                        value={url}
+                        logoUrl={siteActif ? siteActif.logo_url : novaSerenityLogo.url}
+                        size={244}
+                      />
                     </div>
                   ) : (
                     <div className="h-[244px] w-[244px] bg-white" aria-hidden="true" />
