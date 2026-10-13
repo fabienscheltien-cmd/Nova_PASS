@@ -1,80 +1,143 @@
-# Déploiement de Nova Pass sur OVH
+# Héberger Nova Pass sur OVH
 
-Cible : un **VPS OVH** (ou une instance Public Cloud) sous Debian 12 / Ubuntu 24.04.
-L'hébergement web mutualisé OVH (PHP/statique) ne convient pas : l'application a besoin
-d'un serveur Node.js pour ses fonctions serveur (enregistrement des visites, e-mails, comptes).
+Adresse visée : **https://novapass.nova-serenity.fr**, avec
+**www.nova-serenity.fr/NovaStore/NovaPass** qui y redirige.
 
-Architecture : `nginx (HTTPS) → Node.js (127.0.0.1:3000) → Supabase` + e-mails via le SMTP OVH.
-La base de données et l'authentification restent sur **Supabase**.
+```
+Visiteur ──► novapass.nova-serenity.fr ──► VPS OVH : nginx (HTTPS) ──► Node.js (Nova Pass)
+                                                                          │
+www.nova-serenity.fr/NovaStore/NovaPass ──(redirection 301)──┘            ▼
+                                                              Supabase (base + comptes)
+                                                              SMTP OVH (e-mails à l'accueil)
+```
 
-Le projet reste compatible Lovable : `npm run build` produit toujours la version Cloudflare,
-`npm run build:ovh` produit la version Node pour le VPS.
+## Pourquoi un sous-domaine et pas directement `/NovaStore/NovaPass`
 
-## 1. Prérequis Supabase
+- Nova Pass est une application Node.js : elle a besoin d'un **VPS OVH**. L'hébergement web
+  mutualisé OVH (celui qui sert en général www.nova-serenity.fr) n'exécute pas Node.js et ne
+  peut pas relayer un sous-dossier vers un autre serveur.
+- L'application utilise des adresses à la racine (`/checkin`, `/registre`, `/_serverFn/…`,
+  `/assets/…`) : la servir dans un sous-dossier demanderait de la reconfigurer entièrement.
+- Le sous-domaine + une redirection donnent le même résultat pour l'utilisateur :
+  `www.nova-serenity.fr/NovaStore/NovaPass` ouvre Nova Pass. Les QR codes pointent vers
+  `https://novapass.nova-serenity.fr/checkin?site=…`.
 
-Il faut les **trois** valeurs du projet Supabase : URL, clé publique et **clé secrète serveur**
-(`service_role` / `sb_secret_…`, menu *Settings › API*).
+## Ce qu'il faut avant de commencer
 
-- Si la clé secrète du projet Lovable Cloud n'est pas accessible, créer un projet sur
-  supabase.com (région UE), puis appliquer dans l'ordre les fichiers de
-  `supabase/migrations/` et `drizzle/migrations/0000_site_logo.sql` (*SQL Editor*).
-  Recréer ensuite le premier compte super admin (*Authentication › Users*, puis insérer
-  ses lignes dans `profils` et `user_roles` avec le rôle `super_admin`).
-- Dans *Authentication › URL Configuration* : **Site URL** = `https://accueil.votre-domaine.fr`
-  et ajouter `https://accueil.votre-domaine.fr/reset-password` aux *Redirect URLs*
-  (sinon les invitations et réinitialisations de mot de passe échouent).
+| Élément | Où |
+|---|---|
+| Un VPS OVH sous Debian 12 ou Ubuntu 24.04 (la plus petite offre suffit) | Espace client OVH › Bare Metal Cloud › VPS |
+| Le domaine nova-serenity.fr géré chez OVH | Espace client OVH › Noms de domaine |
+| Une adresse e-mail OVH pour l'accueil (ex. `accueil@nova-serenity.fr`) et son mot de passe | Espace client OVH › E-mails |
+| Un compte Supabase (gratuit pour démarrer) | https://supabase.com |
+| Le code : dépôt GitHub `fabienscheltien-cmd/Nova_PASS` (ou l'archive fournie) | — |
 
-## 2. DNS
+## Étape 1 — Base de données : votre propre projet Supabase
 
-Espace client OVH › *Domaines* › *Zone DNS* : enregistrement **A** `accueil` → IP du VPS.
+Le serveur a besoin de la **clé secrète** (service role) de la base. Lovable Cloud ne la
+fournit pas : il faut un projet Supabase à vous.
 
-## 3. Installation du serveur (une fois)
+1. Sur supabase.com : *New project*, région **Europe (Paris ou Frankfurt)**, choisir un mot de
+   passe de base (à conserver).
+2. *SQL Editor* › *New query* : coller tout le fichier **`deploy/sql/schema_complet.sql`**,
+   puis *Run*. Il crée toutes les tables, règles d'accès et fonctions de l'application.
+3. Nouvelle requête : coller **`deploy/sql/super_admins.sql`**, remplacer
+   `METTRE_LE_MOT_DE_PASSE_ICI` par le mot de passe voulu, puis *Run*. Les deux comptes
+   super admin sont créés (le tableau final doit afficher `super_admin = true`).
+4. *Authentication › URL Configuration* :
+   - **Site URL** : `https://novapass.nova-serenity.fr`
+   - **Redirect URLs** : ajouter `https://novapass.nova-serenity.fr/reset-password`
+5. *Project Settings › API* : noter l'**URL du projet**, la **clé publique**
+   (`anon` / `sb_publishable_…`) et la **clé secrète** (`service_role` / `sb_secret_…`).
+
+**Données existantes** : les comptes et mots de passe de Lovable Cloud ne sont pas
+transférables. Les registres ayant été remis à zéro, le plus simple est de repartir d'une
+base vide : recréer les sites (menu *Sites et accès*, avec leur logo), puis leurs accès et
+mots de passe. Pour récupérer des données, exporter chaque registre en Excel depuis l'ancien
+site avant la bascule.
+
+## Étape 2 — DNS
+
+Espace client OVH › *Noms de domaine* › nova-serenity.fr › *Zone DNS* › *Ajouter une entrée* :
+type **A**, sous-domaine **`novapass`**, cible = **adresse IPv4 du VPS**.
+(La propagation prend de quelques minutes à quelques heures.)
+
+## Étape 3 — Installer Nova Pass sur le VPS
+
+Se connecter au VPS (`ssh debian@IP-DU-VPS` ou `ssh ubuntu@IP-DU-VPS`), passer root
+(`sudo -i`), puis :
 
 ```sh
-# En root sur le VPS
-apt update && apt install -y nginx git curl certbot python3-certbot-nginx
+apt update && apt install -y nginx git curl certbot python3-certbot-nginx ufw
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt install -y nodejs   # Node 22 LTS
+
 useradd --system --create-home --home-dir /opt/nova-pass novapass
 sudo -u novapass git clone https://github.com/fabienscheltien-cmd/Nova_PASS.git /opt/nova-pass
+# (sans GitHub : envoyer l'archive sur le VPS et la décompresser dans /opt/nova-pass)
 
-cp /opt/nova-pass/deploy/ovh/env.production.example /opt/nova-pass/.env.production
-nano /opt/nova-pass/.env.production          # renseigner Supabase, SMTP et VITE_URL_PUBLIQUE
-chown novapass /opt/nova-pass/.env.production && chmod 600 /opt/nova-pass/.env.production
+cd /opt/nova-pass
+cp deploy/ovh/env.production.example .env.production
+nano .env.production    # Supabase (étape 1), SMTP OVH, VITE_URL_PUBLIQUE
+chown novapass .env.production && chmod 600 .env.production
 
-cd /opt/nova-pass && sudo -u novapass npm install --no-audit --no-fund --no-save \
-  && sudo -u novapass npm run build:ovh
+# Images de l'application (à faire tant que le site Lovable est encore en ligne)
+sudo -u novapass bash deploy/ovh/recuperer-medias.sh
+
+sudo -u novapass npm install --no-audit --no-fund --no-save
+sudo -u novapass npm run build:ovh
 
 cp deploy/ovh/nova-pass.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now nova-pass
 
-cp deploy/ovh/nginx.conf /etc/nginx/sites-available/nova-pass   # adapter server_name
+cp deploy/ovh/nginx.conf /etc/nginx/sites-available/nova-pass
 ln -s /etc/nginx/sites-available/nova-pass /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
-certbot --nginx -d accueil.votre-domaine.fr                       # certificat HTTPS gratuit
+certbot --nginx -d novapass.nova-serenity.fr     # certificat HTTPS gratuit, renouvelé seul
+
+ufw allow OpenSSH && ufw allow 'Nginx Full' && ufw enable
 ```
 
-Pare-feu : n'ouvrir que 22, 80 et 443 (`ufw allow OpenSSH && ufw allow 'Nginx Full' && ufw enable`).
+Vérifier : `systemctl status nova-pass` (doit être *active (running)*), puis ouvrir
+https://novapass.nova-serenity.fr.
 
-## 4. E-mails à l'accueil
+## Étape 4 — Redirection depuis www.nova-serenity.fr/NovaStore/NovaPass
 
-Créer une adresse (ex. `accueil@votre-domaine.fr`) dans l'offre e-mail OVH, puis renseigner
-`SMTP_*` dans `.env.production`. Serveur SMTP OVH habituel : `ssl0.ovh.net`, port 465 (SSL) —
-à confirmer dans l'espace client selon l'offre (MX Plan, Email Pro, Exchange).
-Sans `SMTP_HOST`, l'application tente le service e-mail Lovable, sinon n'envoie rien
-(la visite est quand même enregistrée).
+Si www.nova-serenity.fr est sur l'hébergement web OVH : ajouter dans le fichier
+**`.htaccess`** à la racine du site (dossier `www`, par FTP ou via le gestionnaire de
+fichiers OVH) la ligne de `deploy/ovh/htaccess-redirection.txt` :
 
-## 5. Mises à jour
+```
+Redirect 301 /NovaStore/NovaPass https://novapass.nova-serenity.fr
+```
+
+Si le site est un WordPress ou un autre outil, créer la même redirection 301 avec son module
+de redirections.
+
+## Étape 5 — E-mails à l'accueil
+
+Renseigner `SMTP_*` dans `.env.production` avec l'adresse OVH de l'accueil. Serveur habituel :
+`ssl0.ovh.net`, port 465 (à confirmer dans l'espace client selon l'offre e-mail). Puis
+`systemctl restart nova-pass`.
+
+## Étape 6 — Après la mise en ligne
+
+1. Se connecter avec un compte super admin, recréer les sites et leurs accès
+   (*Sites et accès* › *Définir le mot de passe*).
+2. **Réimprimer toutes les affiches et QR codes** (menu *Affiche PPT*) : les anciens pointent
+   vers novapass.lovable.app.
+3. Tester : scan d'un QR → formulaire → visite au registre → e-mail reçu par l'accueil.
+
+## Mises à jour
 
 ```sh
-sudo -u novapass /opt/nova-pass/deploy/ovh/deployer.sh
+cd /opt/nova-pass && bash deploy/ovh/deployer.sh      # en root
 ```
-(`deployer.sh` appelle `systemctl restart` : autoriser cette commande pour `novapass` via sudoers,
-ou lancer le redémarrage en root.)
 
-Logs : `journalctl -u nova-pass -f`.
+Toute modification d'une variable `VITE_*` de `.env.production` demande de relancer le build
+(`deployer.sh` le fait). Journal : `journalctl -u nova-pass -f`.
 
-## 6. Après la bascule
+## Limites hors Lovable
 
-- **Réimprimer les affiches QR** depuis la nouvelle adresse (menu *Affiche PDF*) : les QR codes
-  encodent l'adresse du site depuis lequel ils sont générés.
-- Tester : scan d'un QR → formulaire → visite visible au registre → e-mail reçu.
+- **Assistant « Poser une question sur les visites »** : il utilise le service d'IA de Lovable
+  et affiche « Assistant non configuré » sur OVH. Le reste de l'application fonctionne.
+- **E-mails** : passent par le SMTP OVH (le service e-mail Lovable n'est pas disponible).

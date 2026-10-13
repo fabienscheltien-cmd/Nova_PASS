@@ -1,0 +1,5 @@
+# À ajouter dans le fichier .htaccess à la racine de www.nova-serenity.fr
+# (hébergement web OVH, dossier « www » via FTP ou le gestionnaire de fichiers).
+# www.nova-serenity.fr/NovaStore/NovaPass (et tout ce qui suit) redirige
+# vers l'application Nova Pass.
+Redirect 301 /NovaStore/NovaPass https://novapass.nova-serenity.fr
