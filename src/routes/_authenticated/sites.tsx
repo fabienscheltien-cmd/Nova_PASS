@@ -12,7 +12,7 @@ import {
   supprimerSite,
   listerComptes,
   inviterCompte,
-  modifierCompte,
+  definirMotDePasseSite,
   envoyerLienMotDePasse,
   supprimerCompte,
 } from "@/lib/admin.functions";
@@ -73,7 +73,7 @@ function Sites() {
   const supprimer = useServerFn(supprimerSite);
   const chargerComptes = useServerFn(listerComptes);
   const inviter = useServerFn(inviterCompte);
-  const definirMdp = useServerFn(modifierCompte);
+  const definirMdpSite = useServerFn(definirMotDePasseSite);
   const envoyerLien = useServerFn(envoyerLienMotDePasse);
   const supprimerAcces = useServerFn(supprimerCompte);
 
@@ -88,10 +88,16 @@ function Sites() {
   const { data: comptes } = useQuery({ queryKey: ["comptes"], queryFn: () => chargerComptes() });
   const [message, setMessage] = useState<string | null>(null);
   const [occupe, setOccupe] = useState<string | null>(null);
-  const [mdpAffiche, setMdpAffiche] = useState<{ email: string; motDePasse: string } | null>(null);
+  const [mdpAffiche, setMdpAffiche] = useState<{
+    email: string;
+    siteNom: string;
+    motDePasse: string;
+  } | null>(null);
   const [copie, setCopie] = useState(false);
+  // Mot de passe de l'accès d'un site : toujours rattaché au site et à son e-mail d'accueil.
   const [saisieMdp, setSaisieMdp] = useState<{
-    userId: string;
+    siteId: string;
+    siteNom: string;
     email: string;
     motDePasse: string;
   } | null>(null);
@@ -133,6 +139,11 @@ function Sites() {
     return (comptes ?? []).find((c) => !c.estSuperAdmin && c.siteId === siteId) ?? null;
   }
 
+  /** Vrai si l'accès rattaché au site n'utilise pas l'e-mail d'accueil du site. */
+  function accesDiscordant(c: { email: string } | null, emailSite: string | null) {
+    return !!c && !!emailSite && c.email.trim().toLowerCase() !== emailSite.trim().toLowerCase();
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
@@ -167,11 +178,11 @@ function Sites() {
             : `Accès créé pour ${mail}. Cliquez sur « Définir le mot de passe » ou « Envoyer un lien » sur la ligne du site.`,
         );
       } else if (actuel && motDePasse) {
-        await definirMdp({ data: { userId: actuel.userId, motDePasse } });
+        await definirMdpSite({ data: { siteId: r.id, motDePasse } });
       }
       if (mail && motDePasse) {
         setCopie(false);
-        setMdpAffiche({ email: mail, motDePasse });
+        setMdpAffiche({ email: mail, siteNom: site.nom, motDePasse });
       }
       const confirmation = site.id
         ? `Le site ${site.nom} a été mis à jour avec succès.`
@@ -196,11 +207,13 @@ function Sites() {
       setErreur(erreurMdp);
       return;
     }
-    setOccupe(saisieMdp.userId);
+    setOccupe(saisieMdp.siteId);
     try {
-      await definirMdp({ data: { userId: saisieMdp.userId, motDePasse: saisieMdp.motDePasse } });
+      const r = await definirMdpSite({
+        data: { siteId: saisieMdp.siteId, motDePasse: saisieMdp.motDePasse },
+      });
       setCopie(false);
-      setMdpAffiche({ email: saisieMdp.email, motDePasse: saisieMdp.motDePasse });
+      setMdpAffiche({ email: r.email, siteNom: r.siteNom, motDePasse: saisieMdp.motDePasse });
       setSaisieMdp(null);
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Le mot de passe n'a pas pu être enregistré.");
@@ -220,6 +233,28 @@ function Sites() {
       queryClient.invalidateQueries({ queryKey: ["comptes"] });
     } catch (err) {
       setErreur(err instanceof Error ? err.message : "Création de l'accès impossible.");
+    } finally {
+      setOccupe(null);
+    }
+  }
+
+  /** Remplace l'accès d'un site par un accès à son e-mail d'accueil. */
+  async function onRattacher(siteId: string, ancienUserId: string, mail: string) {
+    if (
+      !confirm(
+        `Remplacer l'accès actuel de ce site par ${mail} ? L'ancien identifiant ne pourra plus se connecter.`,
+      )
+    )
+      return;
+    setErreur(null);
+    setOccupe(siteId);
+    try {
+      await supprimerAcces({ data: { userId: ancienUserId } });
+      await inviter({ data: { email: mail, siteId } });
+      setMessage(`Accès rattaché à ${mail}. Définissez maintenant son mot de passe.`);
+      queryClient.invalidateQueries({ queryKey: ["comptes"] });
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "Rattachement impossible.");
     } finally {
       setOccupe(null);
     }
@@ -277,9 +312,10 @@ function Sites() {
           className="mt-4 rounded-xl border border-primary/40 bg-card p-5"
         >
           <p className="text-sm text-foreground">
-            Mot de passe enregistré pour <strong>{mdpAffiche.email}</strong>. Notez-le ou
-            transmettez-le maintenant : pour des raisons de sécurité, il n'est pas conservé en clair
-            et ne pourra plus être affiché.
+            Mot de passe enregistré pour le site <strong>{mdpAffiche.siteNom}</strong>, identifiant
+            de connexion <strong>{mdpAffiche.email}</strong>. Notez-le ou transmettez-le maintenant
+            : pour des raisons de sécurité, il n'est pas conservé en clair et ne pourra plus être
+            affiché.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code
@@ -311,8 +347,12 @@ function Sites() {
           className="mt-4 rounded-xl border border-primary/40 bg-card p-5"
         >
           <p className="text-sm text-foreground">
-            Définir le mot de passe de <strong>{saisieMdp.email}</strong> (l'ancien ne fonctionnera
-            plus) :
+            Définir le mot de passe de l'accès du site <strong>{saisieMdp.siteNom}</strong>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Identifiant de connexion :{" "}
+            <strong className="text-foreground">{saisieMdp.email}</strong> (l'ancien mot de passe ne
+            fonctionnera plus)
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <input
@@ -350,7 +390,7 @@ function Sites() {
           <ReglesMotDePasse valeur={saisieMdp.motDePasse} className="mt-2" />
           <div className="mt-3 flex gap-2">
             <button
-              disabled={occupe === saisieMdp.userId}
+              disabled={occupe === saisieMdp.siteId}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               Enregistrer le mot de passe
@@ -583,6 +623,24 @@ function Sites() {
                         </div>
                       );
                     }
+                    if (accesDiscordant(c, s.email_accueil)) {
+                      const mail = s.email_accueil!.trim().toLowerCase();
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-foreground">{c.email}</span>
+                          <span role="alert" className="text-xs text-destructive">
+                            Ne correspond pas à l'e-mail d'accueil du site ({mail}).
+                          </span>
+                          <button
+                            disabled={occupe === s.id}
+                            onClick={() => onRattacher(s.id, c.userId, mail)}
+                            className={petitBouton}
+                          >
+                            Rattacher l'accès à {mail}
+                          </button>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="flex flex-col gap-1">
                         <span className="text-foreground">{c.email}</span>
@@ -599,7 +657,15 @@ function Sites() {
                             disabled={occupe === c.userId}
                             onClick={() => {
                               setVoirMdp(true);
-                              setSaisieMdp({ userId: c.userId, email: c.email, motDePasse: "" });
+                              setErreur(null);
+                              setMdpAffiche(null);
+                              setSaisieMdp({
+                                siteId: s.id,
+                                siteNom: s.nom,
+                                email: c.email,
+                                motDePasse: "",
+                              });
+                              window.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                             className={petitBouton}
                           >
